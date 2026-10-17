@@ -1,6 +1,10 @@
 package dev.jotave.foody.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.jotave.foody.ratelimit.ClientIpResolver;
+import dev.jotave.foody.ratelimit.RateLimitFilter;
+import dev.jotave.foody.ratelimit.RateLimitProperties;
+import dev.jotave.foody.ratelimit.RateLimiter;
 import dev.jotave.foody.user.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,7 +23,13 @@ public class SecurityConfig {
 
   @Bean
   SecurityFilterChain securityFilterChain(
-      HttpSecurity http, JwtService jwtService, UserRepository users, ObjectMapper objectMapper)
+      HttpSecurity http,
+      JwtService jwtService,
+      UserRepository users,
+      ObjectMapper objectMapper,
+      RateLimiter rateLimiter,
+      ClientIpResolver clientIpResolver,
+      RateLimitProperties rateLimitProperties)
       throws Exception {
     var problemHandler = new ProblemDetailSecurityHandler(objectMapper);
     return http.csrf(AbstractHttpConfigurer::disable)
@@ -51,6 +61,10 @@ public class SecurityConfig {
         .addFilterBefore(
             new JwtAuthenticationFilter(jwtService, users),
             UsernamePasswordAuthenticationFilter.class)
+        // After authentication, so the per-user limit knows who is calling.
+        .addFilterAfter(
+            new RateLimitFilter(rateLimiter, clientIpResolver, rateLimitProperties, objectMapper),
+            JwtAuthenticationFilter.class)
         .build();
   }
 

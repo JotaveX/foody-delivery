@@ -9,21 +9,32 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
  * Base class for integration tests: real Redis via Testcontainers and a throwaway SQLite file per
  * test run, migrated by Flyway on context startup.
+ *
+ * <p>Every test registers and logs in from 127.0.0.1, so the rate limits are raised far above what
+ * a test run needs; {@code RateLimitIT} overrides them with {@code @TestPropertySource}.
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Testcontainers
+@SpringBootTest(
+    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+    properties = {
+      "app.rate-limit.per-ip.login.capacity=100000",
+      "app.rate-limit.per-ip.register.capacity=100000",
+      "app.rate-limit.per-user.capacity=100000"
+    })
 public abstract class IntegrationTest {
 
-  @Container
+  // One container for the whole JVM (stopped by Ryuk), not @Container: that would stop it after
+  // each test class while Spring keeps cached contexts pointing at its old port.
   @ServiceConnection(name = "redis")
   static final GenericContainer<?> REDIS =
       new GenericContainer<>("redis:7-alpine").withExposedPorts(6379);
+
+  static {
+    REDIS.start();
+  }
 
   private static final Path SQLITE_DIR = createTempDir();
 

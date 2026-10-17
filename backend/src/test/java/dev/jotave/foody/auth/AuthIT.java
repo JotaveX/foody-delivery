@@ -74,7 +74,8 @@ class AuthIT extends IntegrationTest {
 
     assertThat(me.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(me.getBody()).containsEntry("email", email);
-    assertThat(map(me.getBody().get("defaultAddress"))).containsEntry("street", "Avenida Paulista");
+    // Sign-up takes no address; the first one is added later.
+    assertThat(me.getBody()).containsEntry("defaultAddress", null);
   }
 
   @Test

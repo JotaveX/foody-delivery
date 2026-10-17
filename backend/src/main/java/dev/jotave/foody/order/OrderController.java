@@ -1,6 +1,7 @@
 package dev.jotave.foody.order;
 
 import dev.jotave.foody.auth.AuthenticatedUser;
+import dev.jotave.foody.idempotency.Idempotent;
 import dev.jotave.foody.order.OrderResponses.HistoryEntry;
 import dev.jotave.foody.order.OrderResponses.OrderDetail;
 import dev.jotave.foody.order.OrderResponses.OrderSummary;
@@ -37,7 +38,9 @@ public class OrderController {
       summary = "Create an order",
       description =
           "Send exactly one of addressId (an active address of yours) or newAddress (added to your"
-              + " profile; saveAsDefault makes it the default).")
+              + " profile; saveAsDefault makes it the default). An optional Idempotency-Key header"
+              + " (UUID) makes retries safe: the same key and body replay the first response.")
+  @Idempotent
   @PostMapping
   public ResponseEntity<OrderDetail> create(
       @AuthenticationPrincipal AuthenticatedUser principal,

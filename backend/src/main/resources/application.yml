@@ -50,6 +50,33 @@ app:
     type: ${STORAGE_TYPE:gcs}
     bucket: ${GCS_BUCKET}
     local-path: ${STORAGE_LOCAL_PATH:./data/uploads}
+  idempotency:
+    # How long a POST /orders Idempotency-Key is remembered (in progress or completed).
+    ttl: 24h
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    # Reverse proxies (IPs or CIDRs, comma-separated) whose X-Forwarded-For is trusted to find
+    # the client IP. Empty: the header is ignored. In production set it to Caddy's address on the
+    # Docker network; never to a range that internet clients can reach directly.
+    trusted-proxies: ${RATE_LIMIT_TRUSTED_PROXIES:}
+    # Per client IP, on public endpoints (the key names the Redis bucket).
+    per-ip:
+      login:
+        path: /auth/login
+        capacity: 5
+        period: 1m
+      register:
+        path: /auth/register
+        capacity: 3
+        period: 1m
+      forgot-password:
+        path: /auth/forgot-password
+        capacity: 3
+        period: 1m
+    # Per user, on every authenticated request.
+    per-user:
+      capacity: 100
+      period: 1m
 
 management:
   endpoints:

@@ -103,6 +103,8 @@ function NewOrderFormView({ addresses }: { addresses: Address[] }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [apiError, setApiError] = useState<string | null>(null)
+  // One key per opening of the form: every retry of the submit sends the same one.
+  const [idempotencyKey] = useState(() => crypto.randomUUID())
   const defaultAddress = addresses.find((a) => a.isDefault) ?? addresses[0]
 
   const form = useForm<NewOrderForm>({
@@ -133,7 +135,7 @@ function NewOrderFormView({ addresses }: { addresses: Address[] }) {
   }, 0)
 
   const mutation = useMutation({
-    mutationFn: createOrder,
+    mutationFn: (input: CreateOrderInput) => createOrder(input, idempotencyKey),
     onSuccess: async (_order, input) => {
       const createdAddress = 'newAddress' in input
       await Promise.all([

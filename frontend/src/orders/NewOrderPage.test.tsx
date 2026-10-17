@@ -214,4 +214,29 @@ describe('NewOrderPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Endereço de entrega inválido')
     expect(screen.getByText('Endereço não encontrado.')).toBeInTheDocument()
   })
+
+  it('reuses the same Idempotency-Key when the submit is retried', async () => {
+    mockApi()
+    const keys: (string | null)[] = []
+    server.use(
+      http.post('/api/orders', ({ request }) => {
+        keys.push(request.headers.get('Idempotency-Key'))
+        return keys.length === 1
+          ? HttpResponse.json({ status: 500, detail: 'Erro inesperado.' }, { status: 500 })
+          : HttpResponse.json(orderDetail(99, 'RECEBIDO'), { status: 201 })
+      }),
+    )
+    const { user } = renderApp('/orders/new')
+    await screen.findByRole('radio', { name: /^Casa/ })
+
+    await fillOneItem(user)
+    await user.click(screen.getByRole('button', { name: 'Criar pedido' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Erro inesperado.')
+    await user.click(screen.getByRole('button', { name: 'Criar pedido' }))
+
+    expect(await screen.findByRole('heading', { name: 'Pedidos' })).toBeInTheDocument()
+    expect(keys).toHaveLength(2)
+    expect(keys[0]).toMatch(/^[0-9a-f-]{36}$/)
+    expect(keys[1]).toBe(keys[0])
+  })
 })

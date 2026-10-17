@@ -33,8 +33,13 @@ export async function getOrderHistory(id: number) {
   return (await api.get<HistoryEntry[]>(`/orders/${id}/history`)).data
 }
 
-export async function createOrder(input: CreateOrderInput) {
-  return (await api.post<OrderDetail>('/orders', input)).data
+/**
+ * The idempotency key identifies one order the user is placing: retries of the same submit reuse
+ * it, so a request that reached the server but whose response was lost cannot create a duplicate.
+ */
+export async function createOrder(input: CreateOrderInput, idempotencyKey: string) {
+  const headers = { 'Idempotency-Key': idempotencyKey }
+  return (await api.post<OrderDetail>('/orders', input, { headers })).data
 }
 
 export async function changeOrderStatus(id: number, status: OrderStatus) {
