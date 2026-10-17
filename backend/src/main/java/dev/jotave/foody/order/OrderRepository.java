@@ -1,6 +1,7 @@
 package dev.jotave.foody.order;
 
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -9,6 +10,12 @@ import org.springframework.data.jpa.repository.Query;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
+  // Listings show the delivery address: fetch it in the same query (to-one, safe to paginate).
+  @Override
+  @EntityGraph(attributePaths = "deliveryAddress")
+  Page<Order> findAll(Pageable pageable);
+
+  @EntityGraph(attributePaths = "deliveryAddress")
   Page<Order> findByStatus(OrderStatus status, Pageable pageable);
 
   @Query(
@@ -21,5 +28,5 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
   @EntityGraph(attributePaths = {"deliveryAddress", "createdBy"})
   @Query("select o from Order o where o.id = :id")
-  java.util.Optional<Order> findDetailed(Long id);
+  Optional<Order> findDetailed(Long id);
 }

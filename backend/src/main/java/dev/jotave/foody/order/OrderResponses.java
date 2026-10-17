@@ -15,6 +15,7 @@ public final class OrderResponses {
       OrderStatus status,
       BigDecimal totalAmount,
       int itemCount,
+      DeliveryAddress deliveryAddress,
       Instant createdAt,
       Instant updatedAt) {}
 

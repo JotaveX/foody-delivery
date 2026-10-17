@@ -21,6 +21,7 @@ final class OrderMapper {
         order.getStatus(),
         order.getTotalAmount(),
         order.getItems().size(),
+        toDeliveryAddress(order.getDeliveryAddress()),
         order.getCreatedAt(),
         order.getUpdatedAt());
   }

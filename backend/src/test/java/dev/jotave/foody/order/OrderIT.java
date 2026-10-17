@@ -272,6 +272,9 @@ class OrderIT extends IntegrationTest {
         .containsEntry("itemCount", 2)
         .containsEntry("totalAmount", 33.9)
         .doesNotContainKey("items");
+    assertThat(map(content.getFirst().get("deliveryAddress")))
+        .containsEntry("street", "Avenida Paulista")
+        .containsEntry("city", "São Paulo");
 
     assertThat(list(get("/orders?size=2&page=1").getBody().get("content")))
         .extracting(o -> id(o))
