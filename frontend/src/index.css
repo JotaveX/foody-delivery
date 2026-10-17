@@ -229,6 +229,48 @@ button {
   gap: 1rem;
 }
 
+.live-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.live-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: #d97706;
+}
+
+.live-live {
+  color: #15803d;
+}
+
+.live-live .live-dot {
+  background: #16a34a;
+  box-shadow: 0 0 0 3px #dcfce7;
+}
+
+.live-reconnecting .live-dot {
+  animation: live-blink 1s ease-in-out infinite;
+}
+
+@keyframes live-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-reconnecting .live-dot {
+    animation: none;
+  }
+}
+
 .app-main {
   max-width: 960px;
   margin: 0 auto;

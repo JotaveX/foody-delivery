@@ -1,11 +1,13 @@
-import { screen, within } from '@testing-library/react'
+import { act, screen, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
+import { FakeStompClient } from '../test/fakeStomp'
 import { storeSession, user as fixtureUser } from '../test/fixtures'
-import { orderSummary, page } from '../test/orderFixtures'
+import { orderDetail, orderSummary, page } from '../test/orderFixtures'
 import { renderApp } from '../test/renderApp'
 import { server } from '../test/server'
 import type { OrderSummary } from './types'
+import { ORDERS_TOPIC } from './useOrderUpdates'
 
 const card = (id: number) => screen.getByRole('listitem', { name: `Pedido #${id}` })
 const buttonNames = (id: number) =>
@@ -187,5 +189,24 @@ describe('OrdersPage', () => {
     await user.click(screen.getByRole('button', { name: 'Tentar novamente' }))
 
     expect(await screen.findByRole('listitem', { name: 'Pedido #1' })).toBeInTheDocument()
+  })
+
+  it('shows the live status in the header and applies pushed updates to the list', async () => {
+    const { listRequests } = mockOrders([orderSummary(1, 'RECEBIDO')])
+    renderApp('/orders')
+    await screen.findByRole('listitem', { name: 'Pedido #1' })
+    const banner = within(screen.getByRole('banner'))
+    expect(banner.getByText('Conectando…')).toBeInTheDocument()
+
+    const socket = FakeStompClient.latest!
+    act(() => socket.simulateConnect())
+    expect(banner.getByText('Ao vivo')).toBeInTheDocument()
+
+    act(() => socket.deliver(ORDERS_TOPIC, orderDetail(1, 'EM_PREPARO')))
+    expect(await within(card(1)).findByText('Em preparo')).toBeInTheDocument()
+    expect(listRequests).toHaveLength(1)
+
+    act(() => socket.simulateClose())
+    expect(banner.getByText('Reconectando…')).toBeInTheDocument()
   })
 })

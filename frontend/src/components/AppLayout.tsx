@@ -1,8 +1,12 @@
 import { Link, NavLink, Outlet } from 'react-router'
 import { useAuth } from '../auth/useAuth'
+import { LiveStatusContext } from '../orders/liveStatus'
+import { useOrderUpdates } from '../orders/useOrderUpdates'
+import { LiveIndicator } from './LiveIndicator'
 
 export function AppLayout() {
-  const { user, logout } = useAuth()
+  const { user, token, logout } = useAuth()
+  const liveStatus = useOrderUpdates(token)
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -14,6 +18,7 @@ export function AppLayout() {
           <NavLink to="/addresses">Endereços</NavLink>
         </nav>
         <div className="app-header-user">
+          <LiveIndicator status={liveStatus} />
           <span>
             Olá, <strong>{user?.name}</strong>
           </span>
@@ -23,7 +28,9 @@ export function AppLayout() {
         </div>
       </header>
       <main className="app-main">
-        <Outlet />
+        <LiveStatusContext.Provider value={liveStatus}>
+          <Outlet />
+        </LiveStatusContext.Provider>
       </main>
     </div>
   )
