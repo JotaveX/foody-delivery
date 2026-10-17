@@ -1,0 +1,14 @@
+{
+  "name": "foody-delivery",
+  "private": true,
+  "description": "Monorepo tooling only (git hooks). App code lives in backend/ and frontend/.",
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.3",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0"
+  }
+}

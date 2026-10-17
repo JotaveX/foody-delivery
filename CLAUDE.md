@@ -60,6 +60,7 @@ infra/      Deploy (docker compose, Caddy, Litestream, GitHub Actions)
 ./mvnw -Dtest=NomeDaClasseTest test       # um teste unitário específico
 ./mvnw -Dit.test=NomeDaClasseIT verify    # um teste de integração específico
 ./mvnw clean package            # gera o jar em target/
+./mvnw spotless:apply           # formata com google-java-format (spotless:check roda no verify)
 ```
 
 ### Frontend (`frontend/`)
@@ -84,6 +85,20 @@ docker compose down
 Produção é implantada pelo workflow do GitHub Actions (docker compose na VM, Caddy + Litestream).
 
 > Os comandos acima refletem a estrutura planejada; ajuste esta seção se nomes de arquivos ou scripts mudarem durante a implementação.
+
+## Git hooks (guardrails locais)
+
+O `package.json` da raiz contém **só tooling** (husky, lint-staged, commitlint). `npm install` na raiz instala os hooks (`core.hooksPath=.husky/_`). Cada hook olha os arquivos alterados e **pula a parte do monorepo que não foi tocada** (`backend/` ou `frontend/`; a parte do frontend também é pulada enquanto `frontend/package.json` não existir).
+
+| Hook | O que roda |
+|---|---|
+| `commit-msg` | `commitlint` com `@commitlint/config-conventional`. |
+| `pre-commit` (rápido, só o que está staged) | `lint-staged`: `eslint --fix` + `prettier --write` nos arquivos staged de `frontend/` (com `frontend/` como cwd, via `scripts/frontend-exec.sh`). Se houver arquivos de `backend/` staged: `./mvnw spotless:check test` (só unitários `*Test`, sem `*IT`). Se houver arquivos de `frontend/` staged: `vitest run`. |
+| `pre-push` (suíte completa) | Considera os arquivos alterados nos commits sendo enviados. Backend: `./mvnw verify` (unitários + `*IT` + `spotless:check`). Frontend: `npm run lint && npm run test:ci && npm run build`. Branch nova sem base conhecida em `<remote>/main` → roda tudo. |
+
+Os hooks são uma conveniência: podem ser pulados com `git commit --no-verify` / `git push --no-verify`. **O CI é o guardrail definitivo** e precisa rodar as mesmas verificações (commitlint, spotless, testes, lint, build) em todo push/PR.
+
+Se o `spotless:check` falhar, rode `./mvnw spotless:apply` em `backend/`. O `google-java-format` está fixado em 1.36.1 porque a 1.37.0 quebra no Spotless 3.10.4; atualize os dois juntos.
 
 ## Backend: notas de configuração
 

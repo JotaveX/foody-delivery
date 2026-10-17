@@ -1,0 +1,20 @@
+# Fast checks scoped to what is staged. The full suite runs on pre-push and in CI.
+set -e
+
+staged=$(git diff --cached --name-only)
+
+npx --no-install lint-staged
+
+if echo "$staged" | grep -q '^backend/'; then
+  echo "pre-commit: backend changed -> spotless:check + unit tests"
+  (cd backend && ./mvnw -B -q spotless:check test)
+else
+  echo "pre-commit: backend untouched, skipping"
+fi
+
+if echo "$staged" | grep -q '^frontend/' && [ -f frontend/package.json ]; then
+  echo "pre-commit: frontend changed -> vitest run"
+  sh scripts/frontend-exec.sh vitest run
+else
+  echo "pre-commit: frontend untouched, skipping"
+fi

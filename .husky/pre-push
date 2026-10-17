@@ -1,0 +1,37 @@
+# Full suite, scoped to the parts of the monorepo touched by the commits being pushed.
+set -e
+
+remote="$1"
+zero=$(git hash-object --stdin </dev/null | tr '[:xdigit:]' '0')
+changed=""
+run_all=false
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue # branch deletion
+  if [ "$remote_sha" = "$zero" ]; then
+    # New remote branch: diff against the remote's main, or run everything if unknown.
+    base=$(git merge-base "$local_sha" "$remote/main" 2>/dev/null || true)
+    if [ -z "$base" ]; then
+      run_all=true
+      continue
+    fi
+  else
+    base="$remote_sha"
+  fi
+  changed="$changed
+$(git diff --name-only "$base" "$local_sha")"
+done
+
+if $run_all || echo "$changed" | grep -q '^backend/'; then
+  echo "pre-push: backend -> mvn verify"
+  (cd backend && ./mvnw -B -q verify)
+else
+  echo "pre-push: backend untouched, skipping"
+fi
+
+if [ -f frontend/package.json ] && { $run_all || echo "$changed" | grep -q '^frontend/'; }; then
+  echo "pre-push: frontend -> lint + test:ci + build"
+  (cd frontend && npm run lint && npm run test:ci && npm run build)
+else
+  echo "pre-push: frontend untouched, skipping"
+fi
