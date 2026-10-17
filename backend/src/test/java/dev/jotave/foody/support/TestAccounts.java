@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,22 +24,28 @@ public final class TestAccounts {
     }
   }
 
+  /** A user with one address ("Casa"), which is their default. */
   public static Account create(TestRestTemplate http) {
-    return create(http, address("Casa", "Avenida Paulista"));
+    Account account = createWithoutAddress(http);
+    ResponseEntity<Map> created =
+        http.postForEntity(
+            "/addresses",
+            new HttpEntity<>(
+                Map.of("address", address("Casa", "Avenida Paulista")), account.headers()),
+            Map.class);
+    if (created.getStatusCode() != HttpStatus.CREATED) {
+      throw new IllegalStateException("Address creation failed: " + created);
+    }
+    return account;
   }
 
-  /** A user who skipped the address at sign-up. */
+  /** A freshly registered user, who has no address yet. */
   public static Account createWithoutAddress(TestRestTemplate http) {
-    return create(http, null);
-  }
-
-  private static Account create(TestRestTemplate http, Map<String, Object> address) {
     String email = "user-" + UUID.randomUUID() + "@example.com";
     Map<String, Object> body = new HashMap<>();
     body.put("name", "Maria Silva");
     body.put("email", email);
     body.put("password", PASSWORD);
-    body.put("address", address);
     ResponseEntity<Map> registered = http.postForEntity("/auth/register", body, Map.class);
     if (registered.getStatusCode() != HttpStatus.CREATED) {
       throw new IllegalStateException("Registration failed: " + registered);

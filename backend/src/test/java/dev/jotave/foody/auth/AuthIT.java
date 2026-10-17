@@ -24,20 +24,16 @@ class AuthIT extends IntegrationTest {
   @Autowired private JdbcTemplate jdbc;
 
   @Test
-  void registerCreatesUserWithDefaultAddress() {
+  void registerCreatesUserWithoutAddress() {
     String email = uniqueEmail();
 
-    ResponseEntity<Map> response = register(email, address());
+    ResponseEntity<Map> response = register(email);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     Map<String, Object> body = map(response.getBody());
     assertThat(body).containsEntry("email", email).containsEntry("name", "Maria Silva");
     assertThat(body).doesNotContainKeys("password", "passwordHash", "tokenVersion");
-    Map<String, Object> defaultAddress = map(body.get("defaultAddress"));
-    assertThat(defaultAddress)
-        .containsEntry("zipCode", "01310100")
-        .containsEntry("state", "SP")
-        .containsEntry("isDefault", true);
+    assertThat(body).containsEntry("defaultAddress", null);
 
     Long userId = jdbc.queryForObject("SELECT id FROM users WHERE email = ?", Long.class, email);
     assertThat(
@@ -46,56 +42,17 @@ class AuthIT extends IntegrationTest {
         .startsWith("$2")
         .isNotEqualTo(PASSWORD);
     assertThat(
-            jdbc.queryForList(
-                "SELECT is_default FROM addresses WHERE user_id = ? AND deleted_at IS NULL",
-                Integer.class,
-                userId))
-        .containsExactly(1);
-  }
-
-  @Test
-  void registerWithoutAddressCreatesUserWithNoAddress() {
-    String email = uniqueEmail();
-
-    ResponseEntity<Map> response = register(email, null);
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-    assertThat(map(response.getBody())).containsEntry("defaultAddress", null);
-    Long userId = jdbc.queryForObject("SELECT id FROM users WHERE email = ?", Long.class, email);
-    assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM addresses WHERE user_id = ?", Integer.class, userId))
-        .isZero();
-
-    String token = (String) login(email, PASSWORD).getBody().get("token");
-    assertThat(me(token).getBody()).containsEntry("defaultAddress", null);
-  }
-
-  @Test
-  void registerWithInvalidAddressIsRejected() {
-    String email = uniqueEmail();
-
-    ResponseEntity<Map> response = register(email, Map.of("street", "Avenida Paulista"));
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-    assertThat(
-            response
-                .getHeaders()
-                .getContentType()
-                .isCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-        .isTrue();
-    assertThat(map(response.getBody().get("errors"))).containsKey("address.zipCode");
-    assertThat(
-            jdbc.queryForObject("SELECT count(*) FROM users WHERE email = ?", Integer.class, email))
         .isZero();
   }
 
   @Test
   void registerWithDuplicateEmailIsConflict() {
     String email = uniqueEmail();
-    assertThat(register(email, address()).getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(register(email).getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
-    ResponseEntity<Map> response = register(email.toUpperCase(), address());
+    ResponseEntity<Map> response = register(email.toUpperCase());
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
     assertThat(response.getBody()).containsEntry("detail", "Este e-mail já está cadastrado.");
@@ -104,7 +61,7 @@ class AuthIT extends IntegrationTest {
   @Test
   void loginReturnsTokenThatAuthenticatesMe() {
     String email = uniqueEmail();
-    register(email, address());
+    register(email);
 
     ResponseEntity<Map> login = login(email, PASSWORD);
 
@@ -123,7 +80,7 @@ class AuthIT extends IntegrationTest {
   @Test
   void loginWithInvalidCredentialsReturnsGenericError() {
     String email = uniqueEmail();
-    register(email, address());
+    register(email);
 
     ResponseEntity<Map> wrongPassword = login(email, "senha-errada");
     ResponseEntity<Map> unknownEmail = login(uniqueEmail(), PASSWORD);
@@ -152,7 +109,7 @@ class AuthIT extends IntegrationTest {
   @Test
   void tokenWithOutdatedTokenVersionIsRejected() {
     String email = uniqueEmail();
-    register(email, address());
+    register(email);
     String token = (String) login(email, PASSWORD).getBody().get("token");
     assertThat(me(token).getStatusCode()).isEqualTo(HttpStatus.OK);
 
@@ -164,12 +121,11 @@ class AuthIT extends IntegrationTest {
         .containsEntry("detail", "Token inválido ou expirado. Faça login novamente.");
   }
 
-  private ResponseEntity<Map> register(String email, Map<String, Object> address) {
+  private ResponseEntity<Map> register(String email) {
     var body = new java.util.HashMap<String, Object>();
     body.put("name", "Maria Silva");
     body.put("email", email);
     body.put("password", PASSWORD);
-    body.put("address", address);
     return http.postForEntity("/auth/register", body, Map.class);
   }
 
@@ -182,17 +138,6 @@ class AuthIT extends IntegrationTest {
     HttpHeaders headers = new HttpHeaders();
     headers.setBearerAuth(token);
     return http.exchange("/auth/me", HttpMethod.GET, new HttpEntity<>(headers), Map.class);
-  }
-
-  private static Map<String, Object> address() {
-    return Map.of(
-        "label", "Casa",
-        "street", "Avenida Paulista",
-        "number", "1000",
-        "neighborhood", "Bela Vista",
-        "city", "São Paulo",
-        "state", "sp",
-        "zipCode", "01310-100");
   }
 
   @SuppressWarnings("unchecked")

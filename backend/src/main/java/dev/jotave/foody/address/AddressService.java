@@ -6,14 +6,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Addresses are immutable: editing creates a new row and soft-deletes the old one, and deleting is
  * always a soft delete, so orders keep the exact address they were delivered to.
  *
- * <p>A user may have no address at all (it is optional at sign-up), but a user with any active
+ * <p>A user may have no address at all (sign-up does not ask for one), but a user with any active
  * address has exactly one active default (at most one is also enforced by the partial unique index
  * {@code ux_addresses_default}). Hibernate flushes INSERTs before UPDATEs, so any write that frees
  * the default slot is flushed explicitly before the write that takes it.
@@ -27,12 +26,6 @@ public class AddressService {
   public AddressService(AddressRepository addresses, UserRepository users) {
     this.addresses = addresses;
     this.users = users;
-  }
-
-  /** Creates the user's first address, already flagged as default. Joins the caller's tx. */
-  @Transactional(propagation = Propagation.MANDATORY)
-  public Address createInitialDefault(User user, AddressRequest request) {
-    return addresses.save(newAddress(user, request, true));
   }
 
   @Transactional(readOnly = true)

@@ -739,28 +739,6 @@ section.card + section.card,
   }
 }
 
-/* Optional address at sign-up */
-.address-skip {
-  align-self: flex-start;
-}
-
-.address-skipped {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.9rem 1rem;
-  border: 1px dashed var(--border);
-  border-radius: var(--radius);
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-.address-skipped p {
-  margin: 0;
-}
-
 /* Delivery address choice on the order form */
 .address-options {
   gap: 0.6rem;

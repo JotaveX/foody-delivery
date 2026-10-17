@@ -54,7 +54,7 @@ infra/      Deploy (docker compose, Caddy, Litestream, GitHub Actions)
 ### Endereços
 
 - **Endereços são imutáveis.** Editar (`PUT /addresses/{id}`) cria um novo registro (novo id) e faz soft delete (`deleted_at`) no antigo, preservando o `is_default`. Excluir é sempre soft delete. Motivo: pedidos têm FK para o endereço usado na entrega, e o histórico não pode mudar retroativamente.
-- **O endereço é opcional no cadastro**: o usuário pode pular e cadastrá-lo ao fazer o primeiro pedido (`newAddress` no `POST /orders`), que vira o padrão automaticamente.
+- **O cadastro não pede endereço**: o usuário cadastra o primeiro ao fazer o primeiro pedido (`newAddress` no `POST /orders`) ou em `/addresses`, e ele vira o padrão automaticamente.
 - **Todo usuário com algum endereço ativo tem exatamente um padrão**, garantido pelo índice único parcial `ux_addresses_default` (`WHERE is_default = 1 AND deleted_at IS NULL`) e pelo `AddressService`.
 - **Não é permitido excluir o endereço padrão** (é preciso eleger outro antes) **nem o último endereço ativo**. Ambos retornam 409 com mensagem específica.
 - **Usuário só enxerga e altera os próprios endereços**; endereço de outro usuário (ou já excluído) retorna 404, para não revelar que existe.

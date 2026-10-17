@@ -1,14 +1,10 @@
 package dev.jotave.foody.auth;
 
-import dev.jotave.foody.address.AddressRequest;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-/**
- * @param address optional: a user may sign up without one and add it with the first order
- */
+/** Sign-up takes no address: the user adds one with their first order (or on /addresses). */
 public record RegisterRequest(
     @NotBlank(message = "Informe o nome.")
         @Size(max = 100, message = "O nome deve ter no máximo 100 caracteres.")
@@ -20,5 +16,4 @@ public record RegisterRequest(
     // BCrypt only uses the first 72 bytes of the input.
     @NotBlank(message = "Informe a senha.")
         @Size(min = 8, max = 72, message = "A senha deve ter entre 8 e 72 caracteres.")
-        String password,
-    @Valid AddressRequest address) {}
+        String password) {}
