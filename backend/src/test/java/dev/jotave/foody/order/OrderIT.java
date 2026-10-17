@@ -136,6 +136,20 @@ class OrderIT extends IntegrationTest {
   }
 
   @Test
+  void firstAddressOfAUserWithoutAddressesBecomesTheDefault() {
+    account = TestAccounts.createWithoutAddress(http);
+    Map<String, Object> body = baseOrder();
+    body.put("newAddress", TestAccounts.address("Casa", "Rua Augusta"));
+
+    ResponseEntity<Map<String, Object>> created = createOrder(body);
+
+    assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    long newAddressId = id(map(created.getBody().get("deliveryAddress")));
+    assertThat(defaultAddressIdOf(account)).isEqualTo(newAddressId);
+    assertThat(activeAddresses(account)).isEqualTo(1);
+  }
+
+  @Test
   void addressOfAnotherUserIsUnprocessable() {
     long othersAddress = defaultAddressIdOf(TestAccounts.create(http));
     int ordersBefore = countOrders();

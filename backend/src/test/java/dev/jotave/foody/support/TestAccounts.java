@@ -24,12 +24,21 @@ public final class TestAccounts {
   }
 
   public static Account create(TestRestTemplate http) {
+    return create(http, address("Casa", "Avenida Paulista"));
+  }
+
+  /** A user who skipped the address at sign-up. */
+  public static Account createWithoutAddress(TestRestTemplate http) {
+    return create(http, null);
+  }
+
+  private static Account create(TestRestTemplate http, Map<String, Object> address) {
     String email = "user-" + UUID.randomUUID() + "@example.com";
     Map<String, Object> body = new HashMap<>();
     body.put("name", "Maria Silva");
     body.put("email", email);
     body.put("password", PASSWORD);
-    body.put("address", address("Casa", "Avenida Paulista"));
+    body.put("address", address);
     ResponseEntity<Map> registered = http.postForEntity("/auth/register", body, Map.class);
     if (registered.getStatusCode() != HttpStatus.CREATED) {
       throw new IllegalStateException("Registration failed: " + registered);

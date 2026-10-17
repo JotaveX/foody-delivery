@@ -51,6 +51,9 @@ public class AuthService {
       // Lost a race with a concurrent registration of the same e-mail.
       throw new EmailAlreadyRegisteredException();
     }
+    if (request.address() == null) {
+      return UserResponse.from(user, null);
+    }
     var address = addressService.createInitialDefault(user, request.address());
     return UserResponse.from(user, AddressResponse.from(address));
   }

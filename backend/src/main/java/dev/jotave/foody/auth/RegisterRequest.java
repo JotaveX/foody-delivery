@@ -4,9 +4,11 @@ import dev.jotave.foody.address.AddressRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+/**
+ * @param address optional: a user may sign up without one and add it with the first order
+ */
 public record RegisterRequest(
     @NotBlank(message = "Informe o nome.")
         @Size(max = 100, message = "O nome deve ter no máximo 100 caracteres.")
@@ -19,4 +21,4 @@ public record RegisterRequest(
     @NotBlank(message = "Informe a senha.")
         @Size(min = 8, max = 72, message = "A senha deve ter entre 8 e 72 caracteres.")
         String password,
-    @NotNull(message = "Informe o endereço.") @Valid AddressRequest address) {}
+    @Valid AddressRequest address) {}

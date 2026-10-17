@@ -21,7 +21,7 @@ const work: Address = {
   isDefault: false,
 }
 
-function mockApi() {
+function mockApi(addresses: Address[] = [home, work]) {
   const posted: Record<string, unknown>[] = []
   const calls = { addresses: 0, me: 0, orders: 0 }
   server.use(
@@ -31,7 +31,7 @@ function mockApi() {
     }),
     http.get('/api/addresses', () => {
       calls.addresses += 1
-      return HttpResponse.json([home, work])
+      return HttpResponse.json(addresses)
     }),
     http.get('/api/orders', () => {
       calls.orders += 1
@@ -60,22 +60,21 @@ describe('NewOrderPage', () => {
     mockApi()
     renderApp('/orders/new')
 
-    const select = await screen.findByLabelText('Endereço de entrega')
-    expect(select).toHaveValue('1')
-    expect(screen.getByRole('option', { selected: true })).toHaveTextContent(
-      'Casa — Avenida Paulista, 1000 (padrão)',
+    const homeOption = await screen.findByRole('radio', { name: /^Casa/ })
+    expect(homeOption).toBeChecked()
+    expect(homeOption.closest('label')).toHaveTextContent(
+      'CasaPadrãoAvenida Paulista, 1000Bela Vista, São Paulo/SP · CEP 01310-100',
     )
+    expect(screen.getByRole('radio', { name: /^Trabalho/ })).not.toBeChecked()
     expect(screen.getByLabelText('Cliente')).toHaveValue('Maria Silva')
-    expect(screen.getByLabelText('Rua')).toHaveValue('Avenida Paulista')
-    expect(screen.getByLabelText('Rua')).toHaveAttribute('readonly')
-    expect(screen.getByLabelText('CEP')).toHaveValue('01310-100')
-    expect(screen.getByLabelText('Bairro')).toHaveValue('Bela Vista')
+    // No address form until the user chooses to register a new one.
+    expect(screen.queryByLabelText('Rua')).not.toBeInTheDocument()
   })
 
   it('computes the total live and validates the items', async () => {
     const api = mockApi()
     const { user } = renderApp('/orders/new')
-    await screen.findByLabelText('Endereço de entrega')
+    await screen.findByRole('radio', { name: /^Casa/ })
 
     await fillOneItem(user)
     expect(screen.getByTestId('order-total')).toHaveTextContent(/R\$\s25,00/)
@@ -98,8 +97,7 @@ describe('NewOrderPage', () => {
     const api = mockApi()
     const { user } = renderApp('/orders/new')
 
-    await user.selectOptions(await screen.findByLabelText('Endereço de entrega'), '2')
-    expect(screen.getByLabelText('Rua')).toHaveValue('Rua Augusta')
+    await user.click(await screen.findByRole('radio', { name: /^Trabalho/ }))
     await user.clear(screen.getByLabelText('Cliente'))
     await user.type(screen.getByLabelText('Cliente'), 'João')
     await fillOneItem(user)
@@ -116,7 +114,7 @@ describe('NewOrderPage', () => {
     expect(api.calls.addresses).toBe(1)
   })
 
-  it('sends newAddress when using another address, refreshing addresses and user', async () => {
+  it('sends newAddress when registering a new address, refreshing addresses and user', async () => {
     const api = mockApi()
     server.use(
       http.get('https://viacep.com.br/ws/:cep/json/', () =>
@@ -130,16 +128,13 @@ describe('NewOrderPage', () => {
     )
     const { user } = renderApp('/orders/new')
 
-    await user.selectOptions(
-      await screen.findByLabelText('Endereço de entrega'),
-      'Usar outro endereço…',
-    )
+    await user.click(await screen.findByRole('radio', { name: /Cadastrar novo endereço/ }))
+    expect(screen.getByRole('group', { name: 'Novo endereço' })).toBeInTheDocument()
     expect(screen.getByLabelText('Rua')).toHaveValue('')
-    expect(screen.getByLabelText('Rua')).not.toHaveAttribute('readonly')
     await user.type(screen.getByLabelText('CEP'), '01426001')
     await waitFor(() => expect(screen.getByLabelText('Rua')).toHaveValue('Rua Oscar Freire'))
     await user.type(screen.getByLabelText('Número'), '42')
-    await user.click(screen.getByLabelText('Definir como padrão'))
+    await user.click(screen.getByLabelText('Usar como meu endereço padrão'))
     await fillOneItem(user)
     const meCallsBefore = api.calls.me
     await user.click(screen.getByRole('button', { name: 'Criar pedido' }))
@@ -165,6 +160,37 @@ describe('NewOrderPage', () => {
     expect(api.calls.addresses).toBe(2)
   })
 
+  it('asks a user without addresses to register one', async () => {
+    const api = mockApi([])
+    server.use(http.get('https://viacep.com.br/ws/:cep/json/', () => HttpResponse.error()))
+    const { user } = renderApp('/orders/new')
+
+    expect(await screen.findByRole('group', { name: 'Novo endereço' })).toBeInTheDocument()
+    expect(screen.getByText(/Você ainda não tem endereço cadastrado/)).toBeInTheDocument()
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Usar como meu endereço padrão')).not.toBeInTheDocument()
+
+    await fillOneItem(user)
+    await user.click(screen.getByRole('button', { name: 'Criar pedido' }))
+    expect(await screen.findByText('Informe a rua.')).toBeInTheDocument()
+    expect(api.posted).toEqual([])
+
+    await user.type(screen.getByLabelText('CEP'), '01310100')
+    await user.type(screen.getByLabelText('Rua'), 'Avenida Paulista')
+    await user.type(screen.getByLabelText('Número'), '1000')
+    await user.type(screen.getByLabelText('Bairro'), 'Bela Vista')
+    await user.type(screen.getByLabelText('Cidade'), 'São Paulo')
+    await user.type(screen.getByLabelText('UF'), 'SP')
+    await user.click(screen.getByRole('button', { name: 'Criar pedido' }))
+
+    expect(await screen.findByRole('heading', { name: 'Pedidos' })).toBeInTheDocument()
+    expect(api.posted).toEqual([
+      expect.objectContaining({
+        newAddress: expect.objectContaining({ street: 'Avenida Paulista', zipCode: '01310100' }),
+      }),
+    ])
+  })
+
   it('shows API errors on the form', async () => {
     mockApi()
     server.use(
@@ -180,7 +206,7 @@ describe('NewOrderPage', () => {
       ),
     )
     const { user } = renderApp('/orders/new')
-    await screen.findByLabelText('Endereço de entrega')
+    await screen.findByRole('radio', { name: /^Casa/ })
 
     await fillOneItem(user)
     await user.click(screen.getByRole('button', { name: 'Criar pedido' }))

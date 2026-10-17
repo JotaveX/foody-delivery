@@ -13,7 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
  * Addresses are immutable: editing creates a new row and soft-deletes the old one, and deleting is
  * always a soft delete, so orders keep the exact address they were delivered to.
  *
- * <p>Every user has exactly one active default address (also enforced by the partial unique index
+ * <p>A user may have no address at all (it is optional at sign-up), but a user with any active
+ * address has exactly one active default (at most one is also enforced by the partial unique index
  * {@code ux_addresses_default}). Hibernate flushes INSERTs before UPDATEs, so any write that frees
  * the default slot is flushed explicitly before the write that takes it.
  */
@@ -58,7 +59,7 @@ public class AddressService {
   @Transactional
   public Address create(long userId, AddressRequest request, boolean makeDefault) {
     Optional<Address> currentDefault = findDefault(userId);
-    // Defensive: a user without a default (should not happen) gets this one as default.
+    // A user's first address (e.g. added with their first order) always becomes the default.
     boolean isDefault = makeDefault || currentDefault.isEmpty();
     if (isDefault) {
       currentDefault.ifPresent(this::unmarkDefault);

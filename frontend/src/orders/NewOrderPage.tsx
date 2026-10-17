@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useId, useState } from 'react'
+import { useState } from 'react'
 import {
   FormProvider,
   useFieldArray,
@@ -29,7 +29,7 @@ import { formatBRL, formatZipCode } from '../lib/format'
 import { createOrder, type CreateOrderInput } from './api'
 import { orderKeys } from './queries'
 
-/** Select value meaning "type a new address" instead of a saved one. */
+/** Choice value meaning "register a new address" instead of using a saved one. */
 const NEW_ADDRESS = 'new'
 
 const hasAtMostTwoDecimals = (value: number) =>
@@ -125,7 +125,7 @@ function NewOrderFormView({ addresses }: { addresses: Address[] }) {
   const { fields, append, remove } = useFieldArray({ control, name: 'items' })
   const items = useWatch({ control, name: 'items' })
   const addressChoice = useWatch({ control, name: 'addressChoice' })
-  const selectedAddress = addresses.find((a) => String(a.id) === addressChoice)
+  const hasAddresses = addresses.length > 0
 
   const total = items.reduce((sum, item) => {
     const subtotal = Number(item.quantity) * Number(item.unitPrice)
@@ -139,7 +139,8 @@ function NewOrderFormView({ addresses }: { addresses: Address[] }) {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: orderKeys.all }),
         createdAddress && queryClient.invalidateQueries({ queryKey: addressKeys.all }),
-        createdAddress && input.saveAsDefault && refreshUser().catch(() => {}),
+        // The default may have changed (asked for, or this was the user's first address).
+        createdAddress && refreshUser().catch(() => {}),
       ])
       navigate('/orders')
     },
@@ -246,36 +247,52 @@ function NewOrderFormView({ addresses }: { addresses: Address[] }) {
 
         <section className="card" aria-labelledby="order-address-title">
           <h2 id="order-address-title">Entrega</h2>
-          <div className="field">
-            <label htmlFor="address-choice">Endereço de entrega</label>
-            <select
-              id="address-choice"
-              {...register('addressChoice')}
-              aria-invalid={errors.addressChoice ? true : undefined}
-            >
+          {hasAddresses ? (
+            <fieldset className="address-options">
+              <legend>Endereço de entrega</legend>
               {addresses.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.label ?? 'Endereço'} — {a.street}, {a.number}
-                  {a.isDefault ? ' (padrão)' : ''}
-                </option>
+                <label key={a.id} className="address-option">
+                  <input type="radio" value={String(a.id)} {...register('addressChoice')} />
+                  <AddressSummary address={a} />
+                </label>
               ))}
-              <option value={NEW_ADDRESS}>Usar outro endereço…</option>
-            </select>
-            {errors.addressChoice && (
-              <span className="field-error">{errors.addressChoice.message}</span>
-            )}
-          </div>
-
-          {addressChoice === NEW_ADDRESS ? (
-            <>
-              <AddressFields />
-              <label className="checkbox">
-                <input type="checkbox" {...register('saveAsDefault')} />
-                Definir como padrão
+              <label className="address-option address-option-new">
+                <input type="radio" value={NEW_ADDRESS} {...register('addressChoice')} />
+                <span className="address-option-body">
+                  <span className="address-option-title">+ Cadastrar novo endereço</span>
+                  <span className="address-option-meta">
+                    Ele também fica salvo em Meus endereços.
+                  </span>
+                </span>
               </label>
-            </>
+              {errors.addressChoice && (
+                <span className="field-error">{errors.addressChoice.message}</span>
+              )}
+            </fieldset>
           ) : (
-            selectedAddress && <SavedAddressFields address={selectedAddress} />
+            <p className="field-hint">
+              Você ainda não tem endereço cadastrado. Informe onde quer receber o pedido: ele será
+              salvo como seu endereço padrão.
+            </p>
+          )}
+
+          {addressChoice === NEW_ADDRESS && (
+            <div className="new-address-panel" role="group" aria-labelledby="new-address-title">
+              <h3 id="new-address-title">Novo endereço</h3>
+              <AddressFields />
+              {hasAddresses && (
+                <label className="checkbox">
+                  <input type="checkbox" {...register('saveAsDefault')} />
+                  Usar como meu endereço padrão
+                </label>
+              )}
+            </div>
+          )}
+
+          {hasAddresses && (
+            <p className="field-hint">
+              Para editar ou excluir endereços, use <Link to="/addresses">Meus endereços</Link>.
+            </p>
           )}
         </section>
 
@@ -292,36 +309,22 @@ function NewOrderFormView({ addresses }: { addresses: Address[] }) {
   )
 }
 
-/** The selected saved address, shown read-only (addresses are edited on /addresses). */
-function SavedAddressFields({ address }: { address: Address }) {
-  const fields: [string, string][] = [
-    ['CEP', formatZipCode(address.zipCode)],
-    ['Rua', address.street],
-    ['Número', address.number],
-    ['Complemento', address.complement ?? ''],
-    ['Bairro', address.neighborhood],
-    ['Cidade', address.city],
-    ['UF', address.state],
-  ]
+function AddressSummary({ address }: { address: Address }) {
   return (
-    <div className="saved-address">
-      {fields.map(([label, value]) => (
-        <ReadOnlyField key={label} label={label} value={value} />
-      ))}
-      <p className="field-hint">
-        Para alterar este endereço, use <Link to="/addresses">Meus endereços</Link>.
-      </p>
-    </div>
-  )
-}
-
-function ReadOnlyField({ label, value }: { label: string; value: string }) {
-  const id = useId()
-  return (
-    <div className="field">
-      <label htmlFor={id}>{label}</label>
-      <input id={id} value={value} readOnly />
-    </div>
+    <span className="address-option-body">
+      <span className="address-option-title">
+        {address.label ?? 'Endereço'}
+        {address.isDefault && <span className="badge">Padrão</span>}
+      </span>
+      <span>
+        {address.street}, {address.number}
+        {address.complement ? ` — ${address.complement}` : ''}
+      </span>
+      <span className="address-option-meta">
+        {address.neighborhood}, {address.city}/{address.state} · CEP{' '}
+        {formatZipCode(address.zipCode)}
+      </span>
+    </span>
   )
 }
 

@@ -41,7 +41,8 @@ export interface RegisterInput {
   name: string
   email: string
   password: string
-  address: AddressInput
+  /** Optional: a user may add it later, with the first order. */
+  address?: AddressInput
 }
 
 export interface Session {

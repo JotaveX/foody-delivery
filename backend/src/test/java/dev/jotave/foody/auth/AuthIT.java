@@ -54,10 +54,28 @@ class AuthIT extends IntegrationTest {
   }
 
   @Test
-  void registerWithoutAddressIsRejected() {
+  void registerWithoutAddressCreatesUserWithNoAddress() {
     String email = uniqueEmail();
 
     ResponseEntity<Map> response = register(email, null);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(map(response.getBody())).containsEntry("defaultAddress", null);
+    Long userId = jdbc.queryForObject("SELECT id FROM users WHERE email = ?", Long.class, email);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM addresses WHERE user_id = ?", Integer.class, userId))
+        .isZero();
+
+    String token = (String) login(email, PASSWORD).getBody().get("token");
+    assertThat(me(token).getBody()).containsEntry("defaultAddress", null);
+  }
+
+  @Test
+  void registerWithInvalidAddressIsRejected() {
+    String email = uniqueEmail();
+
+    ResponseEntity<Map> response = register(email, Map.of("street", "Avenida Paulista"));
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(
@@ -66,7 +84,7 @@ class AuthIT extends IntegrationTest {
                 .getContentType()
                 .isCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
         .isTrue();
-    assertThat(map(response.getBody().get("errors"))).containsKey("address");
+    assertThat(map(response.getBody().get("errors"))).containsKey("address.zipCode");
     assertThat(
             jdbc.queryForObject("SELECT count(*) FROM users WHERE email = ?", Integer.class, email))
         .isZero();

@@ -58,6 +58,44 @@ describe('RegisterPage', () => {
     expect(screen.getByText('Informe a rua.')).toBeInTheDocument()
   })
 
+  it('lets the user skip the address and add it later', async () => {
+    let registered: unknown
+    server.use(
+      http.post('/api/auth/register', async ({ request }) => {
+        registered = await request.json()
+        return HttpResponse.json({ ...fixtureUser, defaultAddress: null }, { status: 201 })
+      }),
+      http.post('/api/auth/login', () =>
+        HttpResponse.json({
+          token: 'jwt',
+          expiresIn: 7200,
+          user: { ...fixtureUser, defaultAddress: null },
+        }),
+      ),
+      http.get('/api/auth/me', () => HttpResponse.json({ ...fixtureUser, defaultAddress: null })),
+    )
+    const { user } = renderApp('/register')
+
+    await user.type(screen.getByLabelText('Nome'), 'Maria Silva')
+    await user.type(screen.getByLabelText('E-mail'), 'maria@example.com')
+    await user.type(screen.getByLabelText('Senha'), 's3nha-segura')
+    await user.type(screen.getByLabelText('Confirmar senha'), 's3nha-segura')
+    await user.click(screen.getByRole('button', { name: 'Criar conta' }))
+    expect(await screen.findByText('Informe a rua.')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Cadastrar endereço depois' }))
+    expect(screen.queryByLabelText('Rua')).not.toBeInTheDocument()
+    expect(screen.getByText(/quando fizer o primeiro pedido/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Criar conta' }))
+
+    expect(await screen.findByRole('heading', { name: 'Pedidos' })).toBeInTheDocument()
+    expect(registered).toEqual({
+      name: 'Maria Silva',
+      email: 'maria@example.com',
+      password: 's3nha-segura',
+    })
+  })
+
   it('registers, signs in and shows API errors per field', async () => {
     server.use(
       http.get(VIACEP, () => HttpResponse.error()),
