@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -72,8 +73,10 @@ public class Order {
   @Column(nullable = false)
   private Integer version;
 
+  // Batch-loaded so listing a page of orders (item count) does not issue one query per order.
   @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
   @OrderBy("id")
+  @BatchSize(size = 100)
   private List<OrderItem> items = new ArrayList<>();
 
   @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)

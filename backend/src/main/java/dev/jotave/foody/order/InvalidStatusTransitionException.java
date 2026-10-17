@@ -10,14 +10,19 @@ public class InvalidStatusTransitionException extends ErrorResponseException {
   private final OrderStatus to;
 
   public InvalidStatusTransitionException(OrderStatus from, OrderStatus to) {
-    super(
-        HttpStatus.CONFLICT,
-        ProblemDetail.forStatusAndDetail(
-            HttpStatus.CONFLICT,
-            "Não é possível alterar o status de %s para %s.".formatted(from, to)),
-        null);
+    super(HttpStatus.CONFLICT, problem(from, to), null);
     this.from = from;
     this.to = to;
+  }
+
+  private static ProblemDetail problem(OrderStatus from, OrderStatus to) {
+    ProblemDetail problem =
+        ProblemDetail.forStatusAndDetail(
+            HttpStatus.CONFLICT,
+            "Não é possível alterar o status de %s para %s.".formatted(from, to));
+    problem.setProperty("currentStatus", from);
+    problem.setProperty("requestedStatus", to);
+    return problem;
   }
 
   public OrderStatus getFrom() {

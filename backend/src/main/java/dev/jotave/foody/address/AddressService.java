@@ -49,6 +49,12 @@ public class AddressService {
     return findActive(userId, addressId);
   }
 
+  /** Active address owned by the user, if any (e.g. to validate an order's delivery address). */
+  @Transactional(readOnly = true)
+  public Optional<Address> findOwnedActive(long userId, long addressId) {
+    return addresses.findActive(addressId, userId);
+  }
+
   @Transactional
   public Address create(long userId, AddressRequest request, boolean makeDefault) {
     Optional<Address> currentDefault = findDefault(userId);

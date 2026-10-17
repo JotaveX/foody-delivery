@@ -1,0 +1,15 @@
+package dev.jotave.foody.order;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
+import org.springframework.web.ErrorResponseException;
+
+public class OrderNotFoundException extends ErrorResponseException {
+
+  public OrderNotFoundException() {
+    super(
+        HttpStatus.NOT_FOUND,
+        ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "Pedido não encontrado."),
+        null);
+  }
+}
