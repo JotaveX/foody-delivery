@@ -4,6 +4,8 @@ interface ConfirmDialogProps {
   title: string
   children: ReactNode
   confirmLabel: string
+  busyLabel?: string
+  cancelLabel?: string
   busy?: boolean
   onConfirm: () => void
   onCancel: () => void
@@ -14,6 +16,8 @@ export function ConfirmDialog({
   title,
   children,
   confirmLabel,
+  busyLabel = 'Aguarde…',
+  cancelLabel = 'Cancelar',
   busy = false,
   onConfirm,
   onCancel,
@@ -45,10 +49,10 @@ export function ConfirmDialog({
         <div id={descriptionId}>{children}</div>
         <div className="form-actions">
           <button ref={cancelRef} type="button" className="button-ghost" onClick={onCancel}>
-            Cancelar
+            {cancelLabel}
           </button>
           <button type="button" className="button-danger" disabled={busy} onClick={onConfirm}>
-            {busy ? 'Excluindo…' : confirmLabel}
+            {busy ? busyLabel : confirmLabel}
           </button>
         </div>
       </div>

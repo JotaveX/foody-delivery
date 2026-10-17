@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
 import { toApiError } from '../api/problem'
 import type { Address, AddressInput } from '../auth/types'
@@ -7,12 +8,14 @@ import { FormAlert } from '../components/FormAlert'
 import { AddressForm } from './AddressForm'
 import { toAddressFormValues } from './addressSchema'
 import { createAddress, deleteAddress, makeDefaultAddress, updateAddress } from './api'
-import { useAddresses } from './useAddresses'
+import { addressKeys, useAddresses } from './useAddresses'
 
 type Editor = { mode: 'create' } | { mode: 'edit'; address: Address } | null
 
 export function AddressesPage() {
-  const { addresses, error: loadError, reload } = useAddresses()
+  const { data: addresses, error, isPending } = useAddresses()
+  const queryClient = useQueryClient()
+  const loadError = error ? toApiError(error).message : null
   const { refreshUser } = useAuth()
   const [editor, setEditor] = useState<Editor>(null)
   const [toDelete, setToDelete] = useState<Address | null>(null)
@@ -23,7 +26,7 @@ export function AddressesPage() {
 
   const done = async (message: string, defaultChanged: boolean) => {
     setNotice(message)
-    await reload()
+    await queryClient.invalidateQueries({ queryKey: addressKeys.all })
     // The header/home show the default address, kept in the auth session.
     if (defaultChanged) await refreshUser().catch(() => {})
   }
@@ -125,7 +128,12 @@ export function AddressesPage() {
         />
       )}
 
-      {addresses === null && !loadError && <p className="muted">Carregando endereços…</p>}
+      {isPending && (
+        <p className="muted" role="status" aria-busy="true">
+          Carregando endereços…
+        </p>
+      )}
+      {addresses?.length === 0 && <p className="muted">Nenhum endereço cadastrado.</p>}
 
       <ul className="address-list">
         {addresses?.map((address) => {
@@ -194,6 +202,7 @@ export function AddressesPage() {
         <ConfirmDialog
           title="Excluir endereço?"
           confirmLabel="Excluir"
+          busyLabel="Excluindo…"
           busy={deleting}
           onConfirm={confirmDelete}
           onCancel={cancelDelete}

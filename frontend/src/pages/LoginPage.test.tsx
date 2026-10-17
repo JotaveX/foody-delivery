@@ -31,7 +31,7 @@ describe('LoginPage', () => {
     await user.type(screen.getByLabelText('Senha'), 's3nha-segura')
     await user.click(screen.getByRole('button', { name: 'Entrar' }))
 
-    expect(await screen.findByRole('heading', { name: 'Seus pedidos' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Pedidos' })).toBeInTheDocument()
     expect(screen.getByText('Maria Silva')).toBeInTheDocument()
     expect(sentBody).toEqual({ email: 'maria@example.com', password: 's3nha-segura' })
     expect(JSON.parse(localStorage.getItem('foody.session')!)).toMatchObject({ token: 'jwt' })

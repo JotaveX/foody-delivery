@@ -18,7 +18,7 @@ describe('protected routes', () => {
 
     renderApp('/')
 
-    expect(await screen.findByRole('heading', { name: 'Seus pedidos' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Pedidos' })).toBeInTheDocument()
     expect(screen.getByText('Maria Silva')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Sair' })).toBeInTheDocument()
   })

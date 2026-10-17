@@ -97,7 +97,7 @@ describe('RegisterPage', () => {
     )
     await user.click(screen.getByRole('button', { name: 'Criar conta' }))
 
-    expect(await screen.findByRole('heading', { name: 'Seus pedidos' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Pedidos' })).toBeInTheDocument()
     expect(registered).toMatchObject({
       name: 'Maria Silva',
       email: 'maria@example.com',
