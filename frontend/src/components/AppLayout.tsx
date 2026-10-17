@@ -1,4 +1,4 @@
-import { Link, Outlet } from 'react-router'
+import { Link, NavLink, Outlet } from 'react-router'
 import { useAuth } from '../auth/useAuth'
 
 export function AppLayout() {
@@ -9,6 +9,12 @@ export function AppLayout() {
         <Link to="/" className="brand">
           Foody
         </Link>
+        <nav className="app-nav" aria-label="Principal">
+          <NavLink to="/" end>
+            Pedidos
+          </NavLink>
+          <NavLink to="/addresses">Endereços</NavLink>
+        </nav>
         <div className="app-header-user">
           <span>
             Olá, <strong>{user?.name}</strong>

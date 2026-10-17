@@ -20,27 +20,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => setUnauthorizedHandler(null)
   }, [logout])
 
+  /** Reloads the current user (e.g. after the default address changed). */
+  const refreshUser = useCallback(async () => {
+    const { data } = await api.get<User>('/auth/me')
+    setSession(storeUser(data))
+  }, [])
+
   // Revalidate a stored token once on load (it may have been revoked) and refresh the user.
   const hasSession = session !== null
   useEffect(() => {
     if (!hasSession) return
-    let active = true
-    api
-      .get<User>('/auth/me')
-      .then(({ data }) => {
-        const current = readSession()
-        if (active && current) {
-          const refreshed = { ...current, user: data }
-          writeSession(refreshed)
-          setSession(refreshed)
-        }
-      })
-      .catch(() => {
+    api.get<User>('/auth/me').then(
+      ({ data }) => setSession(storeUser(data)),
+      () => {
         // 401 is handled by the interceptor; anything else keeps the cached user.
-      })
-    return () => {
-      active = false
-    }
+      },
+    )
   }, [hasSession])
 
   const login = useCallback(async (email: string, password: string) => {
@@ -70,9 +65,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       register,
       logout,
+      refreshUser,
     }),
-    [session, login, register, logout],
+    [session, login, register, logout, refreshUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
+
+/** Saves a fresher copy of the user into the stored session and returns it. */
+function storeUser(user: User): Session | null {
+  const current = readSession()
+  if (!current) return null
+  const refreshed = { ...current, user }
+  writeSession(refreshed)
+  return refreshed
 }
