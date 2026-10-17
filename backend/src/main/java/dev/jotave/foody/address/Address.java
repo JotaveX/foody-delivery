@@ -1,5 +1,6 @@
 package dev.jotave.foody.address;
 
+import dev.jotave.foody.common.Timestamps;
 import dev.jotave.foody.user.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -84,7 +85,26 @@ public class Address {
     this.state = state;
     this.zipCode = zipCode;
     this.isDefault = isDefault;
-    this.createdAt = Instant.now();
+    this.createdAt = Timestamps.now();
+  }
+
+  public void markDefault() {
+    this.isDefault = true;
+  }
+
+  public void unmarkDefault() {
+    this.isDefault = false;
+  }
+
+  /** Addresses are never removed: orders keep pointing at the exact address they were sent to. */
+  public void softDelete() {
+    if (deletedAt == null) {
+      this.deletedAt = Timestamps.now();
+    }
+  }
+
+  public boolean isDeleted() {
+    return deletedAt != null;
   }
 
   public Long getId() {

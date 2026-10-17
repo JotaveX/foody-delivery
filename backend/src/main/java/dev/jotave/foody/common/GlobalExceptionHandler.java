@@ -2,6 +2,8 @@ package dev.jotave.foody.common;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.springframework.dao.ConcurrencyFailureException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -9,6 +11,7 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
@@ -47,5 +50,15 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemDetail.forStatusAndDetail(
             HttpStatus.BAD_REQUEST, "Corpo da requisição ausente ou malformado.");
     return handleExceptionInternal(ex, problem, headers, status, request);
+  }
+
+  /**
+   * A concurrent write won the race: a unique index (e.g. the single default address) rejected
+   * ours, SQLite stayed locked past busy_timeout, or an optimistic @Version check failed.
+   */
+  @ExceptionHandler({DataIntegrityViolationException.class, ConcurrencyFailureException.class})
+  ProblemDetail handleConcurrentModification() {
+    return ProblemDetail.forStatusAndDetail(
+        HttpStatus.CONFLICT, "O recurso foi alterado por outra operação. Tente novamente.");
   }
 }

@@ -49,6 +49,17 @@ infra/      Deploy (docker compose, Caddy, Litestream, GitHub Actions)
   - integração com sufixo `*IT` → rodam no **Failsafe** (`mvn verify`).
 - **Cada fase termina com todos os testes passando e um commit.**
 
+## Regras de domínio
+
+### Endereços
+
+- **Endereços são imutáveis.** Editar (`PUT /addresses/{id}`) cria um novo registro (novo id) e faz soft delete (`deleted_at`) no antigo, preservando o `is_default`. Excluir é sempre soft delete. Motivo: pedidos têm FK para o endereço usado na entrega, e o histórico não pode mudar retroativamente.
+- **Todo usuário tem exatamente um endereço padrão ativo**, garantido pelo índice único parcial `ux_addresses_default` (`WHERE is_default = 1 AND deleted_at IS NULL`) e pelo `AddressService`.
+- **Não é permitido excluir o endereço padrão** (é preciso eleger outro antes) **nem o último endereço ativo**. Ambos retornam 409 com mensagem específica.
+- **Usuário só enxerga e altera os próprios endereços**; endereço de outro usuário (ou já excluído) retorna 404, para não revelar que existe.
+- **Armadilha do Hibernate:** no flush, INSERTs rodam antes dos UPDATEs. Toda escrita que libera uma vaga num índice único (desmarcar o padrão, soft delete da versão antiga) precisa de `saveAndFlush` **antes** da escrita que ocupa a vaga; senão o índice é violado.
+- Conflitos de concorrência (violação de índice único, SQLite ocupado além do `busy_timeout`, `@Version`) viram 409 genérico no `GlobalExceptionHandler`.
+
 ## Comandos
 
 ### Backend (`backend/`)

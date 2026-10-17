@@ -1,5 +1,6 @@
 package dev.jotave.foody.user;
 
+import dev.jotave.foody.common.Timestamps;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -42,7 +43,7 @@ public class User {
     this.email = email;
     this.passwordHash = passwordHash;
     this.tokenVersion = 0;
-    this.createdAt = Instant.now();
+    this.createdAt = Timestamps.now();
   }
 
   public Long getId() {
