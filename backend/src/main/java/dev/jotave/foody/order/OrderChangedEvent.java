@@ -1,5 +1,6 @@
 package dev.jotave.foody.order;
 
+import dev.jotave.foody.order.OrderResponses.OrderDetail;
 import java.time.Instant;
 
 /**
@@ -9,13 +10,15 @@ import java.time.Instant;
  * change.
  *
  * @param previousStatus null when the order was just created
+ * @param order snapshot of the order right after the change, mapped while still in the transaction
  */
 public record OrderChangedEvent(
     long orderId,
     OrderStatus previousStatus,
     OrderStatus status,
     long changedBy,
-    Instant occurredAt) {
+    Instant occurredAt,
+    OrderDetail order) {
 
   public boolean isCreation() {
     return previousStatus == null;

@@ -51,8 +51,7 @@ public class OrderService {
                     .map(i -> new OrderItem(i.name(), i.quantity(), i.unitPrice(), i.imageUrl()))
                     .toList(),
                 user));
-    publish(order, null, userId);
-    return OrderMapper.toDetail(order);
+    return publish(order, null, userId);
   }
 
   @Transactional(readOnly = true)
@@ -81,8 +80,7 @@ public class OrderService {
     order.changeStatus(next, users.getReferenceById(userId));
     // Flush now so an optimistic-lock conflict surfaces here (409), before the event goes out.
     orders.saveAndFlush(order);
-    publish(order, previous, userId);
-    return OrderMapper.toDetail(order);
+    return publish(order, previous, userId);
   }
 
   @Transactional(readOnly = true)
@@ -107,9 +105,11 @@ public class OrderService {
     return orders.findDetailed(orderId).orElseThrow(OrderNotFoundException::new);
   }
 
-  private void publish(Order order, OrderStatus previous, long userId) {
+  private OrderDetail publish(Order order, OrderStatus previous, long userId) {
+    OrderDetail detail = OrderMapper.toDetail(order);
     events.publishEvent(
         new OrderChangedEvent(
-            order.getId(), previous, order.getStatus(), userId, order.getUpdatedAt()));
+            order.getId(), previous, order.getStatus(), userId, order.getUpdatedAt(), detail));
+    return detail;
   }
 }

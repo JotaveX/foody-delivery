@@ -59,3 +59,19 @@ sub-rede do compose, como `172.18.0.0/16`). Sem `trusted_proxies` próprio, o Ca
 `X-Forwarded-For` que vem da internet pelo IP real do cliente. A API percorre o header da direita
 para a esquerda, pulando os proxies confiáveis, e o primeiro endereço não confiável é o do cliente.
 Nunca inclua uma faixa que clientes da internet alcancem diretamente.
+
+## Atualizações em tempo real (WebSocket + STOMP)
+
+O front se conecta em `/ws` (STOMP sobre WebSocket puro) e assina `/topic/orders` (lista) e
+`/topic/orders/{id}` (detalhe). Cada mensagem é o pedido completo, no mesmo formato do
+`GET /orders/{id}`.
+
+- **Autenticação:** o JWT vai no header `Authorization: Bearer …` do frame `CONNECT`, nunca na
+  URL (que acabaria em logs de proxy). O `StompAuthInterceptor` aplica a mesma validação do
+  filtro HTTP, incluindo o `token_version`; sem token válido o `CONNECT` é recusado. Clientes só
+  podem fazer `SUBSCRIBE` em `/topic/**`; `SEND` é recusado.
+- **Fan-out pelo Redis:** depois do commit (`@TransactionalEventListener(AFTER_COMMIT)`), o pedido
+  é publicado no canal Redis `order-events`. Toda instância assina esse canal e repassa a
+  mensagem para os seus clientes pelo broker local. Assim, com várias instâncias, o cliente recebe
+  a mudança mesmo conectado em outra instância que não a que a processou.
+- **Origens:** `WS_ALLOWED_ORIGINS` (padrões separados por vírgula; em dev, `http://localhost:*`).

@@ -50,6 +50,10 @@ app:
     type: ${STORAGE_TYPE:gcs}
     bucket: ${GCS_BUCKET}
     local-path: ${STORAGE_LOCAL_PATH:./data/uploads}
+  websocket:
+    # Origin patterns allowed to open /ws (comma-separated). The JWT goes in the STOMP CONNECT
+    # frame, not in a cookie, so this is defense in depth rather than the actual auth.
+    allowed-origins: ${WS_ALLOWED_ORIGINS:https://foody.jotave.dev}
   idempotency:
     # How long a POST /orders Idempotency-Key is remembered (in progress or completed).
     ttl: 24h
@@ -111,3 +115,5 @@ app:
   storage:
     type: ${STORAGE_TYPE:local}
     bucket: ${GCS_BUCKET:foody-dev}
+  websocket:
+    allowed-origins: ${WS_ALLOWED_ORIGINS:http://localhost:*,http://127.0.0.1:*}

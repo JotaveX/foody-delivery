@@ -5,7 +5,6 @@ import dev.jotave.foody.ratelimit.ClientIpResolver;
 import dev.jotave.foody.ratelimit.RateLimitFilter;
 import dev.jotave.foody.ratelimit.RateLimitProperties;
 import dev.jotave.foody.ratelimit.RateLimiter;
-import dev.jotave.foody.user.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -24,8 +23,7 @@ public class SecurityConfig {
   @Bean
   SecurityFilterChain securityFilterChain(
       HttpSecurity http,
-      JwtService jwtService,
-      UserRepository users,
+      TokenAuthenticator tokenAuthenticator,
       ObjectMapper objectMapper,
       RateLimiter rateLimiter,
       ClientIpResolver clientIpResolver,
@@ -50,7 +48,7 @@ public class SecurityConfig {
                         "/v3/api-docs/**",
                         "/swagger-ui/**",
                         "/swagger-ui.html",
-                        // WebSocket handshakes authenticate on their own.
+                        // WebSocket clients authenticate in the STOMP CONNECT frame.
                         "/ws/**",
                         "/error")
                     .permitAll()
@@ -59,7 +57,7 @@ public class SecurityConfig {
         .exceptionHandling(
             e -> e.authenticationEntryPoint(problemHandler).accessDeniedHandler(problemHandler))
         .addFilterBefore(
-            new JwtAuthenticationFilter(jwtService, users),
+            new JwtAuthenticationFilter(tokenAuthenticator),
             UsernamePasswordAuthenticationFilter.class)
         // After authentication, so the per-user limit knows who is calling.
         .addFilterAfter(
