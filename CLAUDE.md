@@ -60,6 +60,15 @@ infra/      Deploy (docker compose, Caddy, Litestream, GitHub Actions)
 - **Armadilha do Hibernate:** no flush, INSERTs rodam antes dos UPDATEs. Toda escrita que libera uma vaga num índice único (desmarcar o padrão, soft delete da versão antiga) precisa de `saveAndFlush` **antes** da escrita que ocupa a vaga; senão o índice é violado.
 - Conflitos de concorrência (violação de índice único, SQLite ocupado além do `busy_timeout`, `@Version`) viram 409 genérico no `GlobalExceptionHandler`.
 
+### Pedidos
+
+- Tabela `orders` (não `order`, palavra reservada), com `order_items` e `order_status_history`. Sem `ON DELETE CASCADE`: `orders.address_id` aponta para o endereço imutável exato da entrega, mesmo após edição/exclusão.
+- **Dinheiro em centavos (`BIGINT`)**: o SQLite não tem decimal exato (`DECIMAL` vira REAL). No domínio e na API é `BigDecimal` com 2 casas; o `MoneyCentsConverter` converte e recusa frações de centavo.
+- **Máquina de estados** em `OrderStatus.canTransitionTo`: `RECEBIDO → EM_PREPARO | CANCELADO`; `EM_PREPARO → SAIU_PARA_ENTREGA | CANCELADO`; `SAIU_PARA_ENTREGA → ENTREGUE`; `ENTREGUE` e `CANCELADO` são terminais.
+- Status só muda por `Order.changeStatus(next, user)` (sem setter), que lança `InvalidStatusTransitionException` (409) e registra o histórico. A criação registra `null → RECEBIDO`. `@Version` faz lock otimista.
+- `totalAmount` é calculado dos itens na criação e persistido; itens não mudam depois.
+- No SQLite, só a PK precisa ser declarada exatamente `INTEGER PRIMARY KEY` (as entidades mapeiam com `@JdbcTypeCode(SqlTypes.INTEGER)`); demais colunas inteiras podem ser `BIGINT`.
+
 ## Comandos
 
 ### Backend (`backend/`)

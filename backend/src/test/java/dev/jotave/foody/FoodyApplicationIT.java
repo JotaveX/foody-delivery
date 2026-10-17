@@ -28,6 +28,6 @@ class FoodyApplicationIT extends IntegrationTest {
             jdbc.queryForObject(
                 "SELECT version FROM flyway_schema_history WHERE success = 1 ORDER BY installed_rank DESC LIMIT 1",
                 String.class))
-        .isEqualTo("2");
+        .isEqualTo("3");
   }
 }
