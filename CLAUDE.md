@@ -69,8 +69,8 @@ infra/      Deploy (docker compose, Caddy, Litestream, GitHub Actions)
 npm install                     # instala dependências
 npm run dev                     # Vite dev server (proxy de /api e /ws para o backend)
 npm run build                   # type-check + build de produção em dist/
-npm run lint                    # lint
-npm test                        # testes
+npm run lint                    # lint (oxlint)
+npm test                        # testes (Vitest em watch; `npm run test:ci` roda uma vez)
 ```
 
 ### Serviços locais (`docker-compose.yml` na raiz)
@@ -93,7 +93,7 @@ O `package.json` da raiz contém **só tooling** (husky, lint-staged, commitlint
 | Hook | O que roda |
 |---|---|
 | `commit-msg` | `commitlint` com `@commitlint/config-conventional`. |
-| `pre-commit` (rápido, só o que está staged) | `lint-staged`: `eslint --fix` + `prettier --write` nos arquivos staged de `frontend/` (com `frontend/` como cwd, via `scripts/frontend-exec.sh`). Se houver arquivos de `backend/` staged: `./mvnw spotless:check test` (só unitários `*Test`, sem `*IT`). Se houver arquivos de `frontend/` staged: `vitest run`. |
+| `pre-commit` (rápido, só o que está staged) | `lint-staged`: `oxlint --fix` + `prettier --write` nos arquivos staged de `frontend/` (com `frontend/` como cwd, via `scripts/frontend-exec.sh`). Se houver arquivos de `backend/` staged: `./mvnw spotless:check test` (só unitários `*Test`, sem `*IT`). Se houver arquivos de `frontend/` staged: `vitest run`. |
 | `pre-push` (suíte completa) | Considera os arquivos alterados nos commits sendo enviados. Backend: `./mvnw verify` (unitários + `*IT` + `spotless:check`). Frontend: `npm run lint && npm run test:ci && npm run build`. Branch nova sem base conhecida em `<remote>/main` → roda tudo. |
 
 Os hooks são uma conveniência: podem ser pulados com `git commit --no-verify` / `git push --no-verify`. **O CI é o guardrail definitivo** e precisa rodar as mesmas verificações (commitlint, spotless, testes, lint, build) em todo push/PR.
