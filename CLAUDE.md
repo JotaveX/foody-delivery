@@ -1,0 +1,84 @@
+# Foody Delivery — Mini Rastreador de Pedidos
+
+Desafio técnico de processo seletivo: um mini rastreador de pedidos de delivery.
+
+## Estrutura do monorepo
+
+```
+backend/    Java 21, Spring Boot 3, Maven
+frontend/   React, Vite, TypeScript
+infra/      Deploy (docker compose, Caddy, Litestream, GitHub Actions)
+```
+
+## Requisitos obrigatórios do desafio
+
+- **Autenticação**: cadastro (nome, e-mail, senha), login por e-mail/senha; apenas usuários autenticados acessam o sistema.
+- **API REST**:
+  - criar pedido (cliente, itens, endereço de entrega);
+  - atualizar status: `RECEBIDO`, `EM_PREPARO`, `SAIU_PARA_ENTREGA`, `ENTREGUE`, `CANCELADO`;
+  - listar todos os pedidos;
+  - buscar pedido por ID.
+- **Persistência** em SQLite.
+- **Front-end** em React listando pedidos com o status atual e permitindo criar pedido.
+- **Git** com histórico de commits.
+
+## Decisões de arquitetura
+
+- **SQLite em modo WAL**, schema versionado com **Flyway**. Nunca usar `spring.jpa.hibernate.ddl-auto=update` (use `validate` ou `none`); toda mudança de schema é uma nova migration.
+- **Redis guarda todo estado efêmero fora da JVM**: rate limit, idempotência, cache e pub/sub do WebSocket. A aplicação é **stateless** (nada de sessão HTTP, cache em memória local ou estado em singletons). O único gargalo de escala consciente é o SQLite.
+- **Toda dependência externa tem substituto local** no docker-compose de dev:
+  - Redis → container Redis;
+  - e-mail → Mailpit;
+  - Google Cloud Storage → storage local de arquivos.
+  
+  O projeto precisa subir **sem nenhuma credencial real**.
+- **Produção**: VM na Compute Engine rodando docker compose; Caddy como reverse proxy com HTTPS em `foody.jotave.dev`; Litestream replicando o SQLite para o GCS; deploy via GitHub Actions.
+- **Roteamento**: em todos os ambientes o front chama a API em `/api` e o WebSocket em `/ws` — proxy do Vite em dev, Caddy em prod. **Sem CORS em produção** (mesma origem).
+
+## Convenções
+
+- Commits seguem **Conventional Commits**, em inglês (`feat:`, `fix:`, `chore:`, `test:`, `docs:`, `refactor:`, `ci:`…).
+- Código (identificadores, comentários) em **inglês**.
+- Mensagens de erro retornadas pela API em **português**.
+- DTOs são **Java records**.
+- **Nunca expor entidades JPA nos controllers** — sempre mapear para DTOs.
+- **Sem Lombok**.
+- **Pacotes por feature** (ex.: `auth`, `order`, `user`), não por camada.
+- Testes:
+  - unitários com sufixo `*Test` → rodam no **Surefire** (`mvn test`);
+  - integração com sufixo `*IT` → rodam no **Failsafe** (`mvn verify`).
+- **Cada fase termina com todos os testes passando e um commit.**
+
+## Comandos
+
+### Backend (`backend/`)
+
+```bash
+./mvnw spring-boot:run          # sobe a API em dev
+./mvnw test                     # testes unitários (*Test, Surefire)
+./mvnw verify                   # unitários + integração (*IT, Failsafe)
+./mvnw -Dtest=NomeDaClasseTest test       # um teste unitário específico
+./mvnw -Dit.test=NomeDaClasseIT verify    # um teste de integração específico
+./mvnw clean package            # gera o jar em target/
+```
+
+### Frontend (`frontend/`)
+
+```bash
+npm install                     # instala dependências
+npm run dev                     # Vite dev server (proxy de /api e /ws para o backend)
+npm run build                   # type-check + build de produção em dist/
+npm run lint                    # lint
+npm test                        # testes
+```
+
+### Infra (`infra/`)
+
+```bash
+docker compose -f infra/docker-compose.dev.yml up -d    # Redis, Mailpit e demais substitutos locais
+docker compose -f infra/docker-compose.dev.yml down
+```
+
+Produção é implantada pelo workflow do GitHub Actions (docker compose na VM, Caddy + Litestream).
+
+> Os comandos acima refletem a estrutura planejada; ajuste esta seção se nomes de arquivos ou scripts mudarem durante a implementação.
