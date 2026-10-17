@@ -54,9 +54,9 @@ infra/      Deploy (docker compose, Caddy, Litestream, GitHub Actions)
 ### Backend (`backend/`)
 
 ```bash
-./mvnw spring-boot:run          # sobe a API em dev
+./mvnw spring-boot:run          # sobe a API em dev (perfil dev é o default; requer docker compose up)
 ./mvnw test                     # testes unitários (*Test, Surefire)
-./mvnw verify                   # unitários + integração (*IT, Failsafe)
+./mvnw verify                   # unitários + integração (*IT, Failsafe; requer Docker p/ Testcontainers)
 ./mvnw -Dtest=NomeDaClasseTest test       # um teste unitário específico
 ./mvnw -Dit.test=NomeDaClasseIT verify    # um teste de integração específico
 ./mvnw clean package            # gera o jar em target/
@@ -72,13 +72,24 @@ npm run lint                    # lint
 npm test                        # testes
 ```
 
-### Infra (`infra/`)
+### Serviços locais (`docker-compose.yml` na raiz)
 
 ```bash
-docker compose -f infra/docker-compose.dev.yml up -d    # Redis, Mailpit e demais substitutos locais
-docker compose -f infra/docker-compose.dev.yml down
+docker compose up -d            # na raiz: Redis (6379) e Mailpit (SMTP 1025, UI http://localhost:8025)
+docker compose down
 ```
+
+### Infra (`infra/`)
 
 Produção é implantada pelo workflow do GitHub Actions (docker compose na VM, Caddy + Litestream).
 
 > Os comandos acima refletem a estrutura planejada; ajuste esta seção se nomes de arquivos ou scripts mudarem durante a implementação.
+
+## Backend: notas de configuração
+
+- Spring Boot 3.5.x, `groupId` `dev.jotave.foody`, pacote raiz `dev.jotave.foody`.
+- SQLite em `./data/tracker.db` (sobrescrevível com `SQLITE_PATH`); os PRAGMAs `journal_mode=WAL`, `busy_timeout=5000` e `foreign_keys=true` vão na URL JDBC e são aplicados a cada conexão. `SqliteDirectoryInitializer` cria o diretório do arquivo.
+- Perfis: `dev` é o default (defaults locais para segredos, SMTP no Mailpit, storage local); `prod` exige `JWT_SECRET`, `SMTP_HOST`, `GCS_BUCKET` etc. via variáveis de ambiente e loga em JSON.
+- Actuator expõe só `health`, com `/actuator/health/liveness` e `/actuator/health/readiness` (readiness inclui Redis).
+- `CorrelationIdFilter` propaga `X-Correlation-Id` (MDC `correlationId`).
+- Testes de integração estendem `dev.jotave.foody.support.IntegrationTest` (Redis via Testcontainers + SQLite em diretório temporário por execução).

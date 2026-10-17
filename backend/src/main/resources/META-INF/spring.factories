@@ -1,0 +1,2 @@
+org.springframework.boot.env.EnvironmentPostProcessor=\
+dev.jotave.foody.persistence.SqliteDirectoryInitializer

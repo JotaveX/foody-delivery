@@ -1,0 +1,86 @@
+spring:
+  application:
+    name: foody-tracker
+  profiles:
+    default: dev
+
+  datasource:
+    # PRAGMAs are applied by sqlite-jdbc on every new connection:
+    # - journal_mode=WAL: readers don't block the writer and vice versa
+    # - busy_timeout=5000: wait up to 5s for the write lock instead of failing with SQLITE_BUSY
+    # - foreign_keys=ON: SQLite ships with FK enforcement disabled by default
+    url: jdbc:sqlite:${SQLITE_PATH:./data/tracker.db}?journal_mode=WAL&busy_timeout=5000&foreign_keys=true
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      # SQLite allows a single writer at a time; WAL lets reads run concurrently with it.
+      # A large pool would only add connections queueing on the same file lock, so we keep
+      # it small: enough for a few concurrent readers, with writes serialized by busy_timeout.
+      maximum-pool-size: 4
+      minimum-idle: 1
+      pool-name: sqlite-pool
+
+  jpa:
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
+    open-in-view: false
+    hibernate:
+      # Schema is owned by Flyway; Hibernate only checks it matches the entities.
+      ddl-auto: validate
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+  mail:
+    host: ${SMTP_HOST}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration: ${JWT_EXPIRATION:PT2H}
+  storage:
+    type: ${STORAGE_TYPE:gcs}
+    bucket: ${GCS_BUCKET}
+    local-path: ${STORAGE_LOCAL_PATH:./data/uploads}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          # Redis holds all ephemeral state (rate limit, idempotency, cache, pub/sub),
+          # so an instance without it should not receive traffic.
+          include: readinessState,redis
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025}
+
+app:
+  jwt:
+    # Dev-only default; production must provide JWT_SECRET.
+    secret: ${JWT_SECRET:dev-only-insecure-jwt-secret-change-me-0123456789abcdef}
+  storage:
+    type: ${STORAGE_TYPE:local}
+    bucket: ${GCS_BUCKET:foody-dev}

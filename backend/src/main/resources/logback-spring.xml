@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- Production: one JSON object per line, MDC (correlationId) included as fields -->
+    <springProfile name="prod">
+        <appender name="JSON" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
+        </appender>
+        <root level="INFO">
+            <appender-ref ref="JSON"/>
+        </root>
+    </springProfile>
+
+    <!-- Everything else (dev, tests): human readable text with the correlation id -->
+    <springProfile name="!prod">
+        <property name="CONSOLE_LOG_PATTERN"
+                  value="%d{HH:mm:ss.SSS} %highlight(%-5level) [%15.15thread] [%X{correlationId:-}] %cyan(%-40.40logger{39}) : %msg%n%wEx"/>
+        <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+</configuration>
