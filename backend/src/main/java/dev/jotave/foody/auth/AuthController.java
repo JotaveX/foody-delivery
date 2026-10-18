@@ -18,9 +18,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
   private final AuthService authService;
+  private final PasswordResetService passwordResetService;
 
-  public AuthController(AuthService authService) {
+  public AuthController(AuthService authService, PasswordResetService passwordResetService) {
     this.authService = authService;
+    this.passwordResetService = passwordResetService;
   }
 
   @Operation(summary = "Register a user together with their default delivery address")
@@ -34,6 +36,22 @@ public class AuthController {
   @PostMapping("/login")
   public LoginResponse login(@Valid @RequestBody LoginRequest request) {
     return authService.login(request);
+  }
+
+  @Operation(
+      summary = "E-mail a password reset link",
+      description = "Always 204, whether or not the e-mail is registered.")
+  @PostMapping("/forgot-password")
+  public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+    passwordResetService.requestReset(request.email());
+    return ResponseEntity.noContent().build();
+  }
+
+  @Operation(summary = "Set a new password with the token from the reset e-mail")
+  @PostMapping("/reset-password")
+  public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+    passwordResetService.reset(request.token(), request.password());
+    return ResponseEntity.noContent().build();
   }
 
   @Operation(

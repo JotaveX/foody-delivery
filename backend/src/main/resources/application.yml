@@ -41,8 +41,9 @@ spring:
       timeout: 1s
       connect-timeout: 1s
 
+  # Only used when app.mail.provider=smtp. Without SMTP_HOST Boot creates no JavaMailSender.
   mail:
-    host: ${SMTP_HOST}
+    host: ${SMTP_HOST:}
     port: ${SMTP_PORT:587}
     username: ${SMTP_USERNAME:}
     password: ${SMTP_PASSWORD:}
@@ -51,6 +52,21 @@ app:
   jwt:
     secret: ${JWT_SECRET}
     expiration: ${JWT_EXPIRATION:PT2H}
+  mail:
+    # resend (HTTP API) or smtp (spring.mail.*).
+    provider: ${MAIL_PROVIDER:resend}
+    # "Name <address>"; with Resend the domain must be verified in the Resend dashboard.
+    from: ${MAIL_FROM}
+    resend:
+      api-key: ${RESEND_API_KEY:}
+      base-url: ${RESEND_BASE_URL:https://api.resend.com}
+      timeout: 10s
+  password-reset:
+    # SPA page that reads ?token= (Cloudflare Pages in production).
+    url: ${PASSWORD_RESET_URL:https://foody.jotave.dev/reset-password}
+    ttl: 30m
+    # At most one reset e-mail per user in this interval.
+    cooldown: 1m
   storage:
     type: ${STORAGE_TYPE:gcs}
     bucket: ${GCS_BUCKET}
@@ -84,6 +100,10 @@ app:
       forgot-password:
         path: /auth/forgot-password
         capacity: 3
+        period: 1m
+      reset-password:
+        path: /auth/reset-password
+        capacity: 5
         period: 1m
     # Per user, on every authenticated request.
     per-user:
@@ -120,6 +140,12 @@ app:
   jwt:
     # Dev-only default; production must provide JWT_SECRET.
     secret: ${JWT_SECRET:dev-only-insecure-jwt-secret-change-me-0123456789abcdef}
+  mail:
+    # Mailpit (docker compose); MAIL_PROVIDER=resend with RESEND_API_KEY tests the real provider.
+    provider: ${MAIL_PROVIDER:smtp}
+    from: ${MAIL_FROM:Foody <no-reply@foody.local>}
+  password-reset:
+    url: ${PASSWORD_RESET_URL:http://localhost:5173/reset-password}
   storage:
     type: ${STORAGE_TYPE:local}
     bucket: ${GCS_BUCKET:foody-dev}

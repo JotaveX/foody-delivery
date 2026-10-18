@@ -69,4 +69,10 @@ public class User {
   public Instant getCreatedAt() {
     return createdAt;
   }
+
+  /** Replaces the password and revokes every JWT issued before (they carry the old version). */
+  public void changePassword(String newPasswordHash) {
+    this.passwordHash = newPasswordHash;
+    this.tokenVersion++;
+  }
 }

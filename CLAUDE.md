@@ -28,7 +28,7 @@ infra/      Deploy (docker compose, Caddy, Litestream; front no Cloudflare Pages
 - **Redis guarda todo estado efêmero fora da JVM**: rate limit, idempotência, cache e pub/sub do WebSocket. A aplicação é **stateless** (nada de sessão HTTP, cache em memória local ou estado em singletons). O único gargalo de escala consciente é o SQLite.
 - **Toda dependência externa tem substituto local** no docker-compose de dev:
   - Redis → container Redis;
-  - e-mail → Mailpit;
+  - e-mail (Resend em produção) → Mailpit via SMTP;
   - Google Cloud Storage → storage local de arquivos.
   
   O projeto precisa subir **sem nenhuma credencial real**.
@@ -126,10 +126,12 @@ Se o `spotless:check` falhar, rode `./mvnw spotless:apply` em `backend/`. O `goo
 
 - Spring Boot 3.5.x, `groupId` `dev.jotave.foody`, pacote raiz `dev.jotave.foody`.
 - SQLite em `./data/tracker.db` (sobrescrevível com `SQLITE_PATH`); os PRAGMAs `journal_mode=WAL`, `busy_timeout=5000` e `foreign_keys=true` vão na URL JDBC e são aplicados a cada conexão. `SqliteDirectoryInitializer` cria o diretório do arquivo.
-- Perfis: `dev` é o default (defaults locais para segredos, SMTP no Mailpit, storage local); `prod` exige `JWT_SECRET`, `SMTP_HOST`, `GCS_BUCKET` etc. via variáveis de ambiente e loga em JSON.
+- Perfis: `dev` é o default (defaults locais para segredos, SMTP no Mailpit, storage local); `prod` exige `JWT_SECRET`, `RESEND_API_KEY`, `MAIL_FROM`, `GCS_BUCKET` etc. via variáveis de ambiente e loga em JSON.
 - Actuator expõe só `health`, com `/actuator/health/liveness` e `/actuator/health/readiness` (readiness inclui Redis).
 - `CorrelationIdFilter` propaga `X-Correlation-Id` (MDC `correlationId`).
 - Testes de integração estendem `dev.jotave.foody.support.IntegrationTest` (Redis via Testcontainers + SQLite em diretório temporário por execução). O container Redis é **singleton da JVM** (não `@Container`): com `@Container` ele seria reiniciado em outra porta a cada classe, e os contextos Spring em cache ficariam apontando para a porta antiga. A base sobe os limites de rate limit (todos os testes vêm de 127.0.0.1); `RateLimitIT` sobrescreve com `@TestPropertySource`.
 - **Idempotência**: `@Idempotent` em métodos de controller autenticados que retornam `ResponseEntity` (`idempotency/IdempotencyAspect`). Detalhes no README.
 - **WebSocket**: STOMP em `/ws`, simple broker em `/topic`. JWT no frame CONNECT (`realtime/StompAuthInterceptor`, mesma validação do HTTP via `auth/TokenAuthenticator`). `order/OrderEventsPublisher` (AFTER_COMMIT) publica o `OrderDetail` no canal Redis `order-events`; `order/OrderEventsRelay` repassa para `/topic/orders` e `/topic/orders/{id}`. O `OrderChangedEvent` carrega o snapshot `OrderDetail` mapeado dentro da transação.
 - **Rate limit**: `ratelimit/RateLimitFilter` roda na cadeia de segurança logo depois do JWT. Os buckets do Bucket4j ficam no Redis através de um `RedisClient` Lettuce próprio, montado a partir de `RedisConnectionDetails`. O `X-Forwarded-For` só é lido quando o peer está em `app.rate-limit.trusted-proxies` (`ClientIpResolver`).
+- **E-mail**: `mail/EmailSender`, com a implementação escolhida por `app.mail.provider` (`MAIL_PROVIDER`): `resend` em produção (`ResendEmailSender`, `POST /emails` da API HTTP do Resend via `RestClient`, sem o SDK; exige `RESEND_API_KEY` e `MAIL_FROM` com domínio verificado) e `smtp` em dev (`SmtpEmailSender` no Mailpit). `EmailMessage.idempotencyKey` vira o header `Idempotency-Key` do Resend. Falhas viram `EmailDeliveryException`. Envios que não podem segurar a requisição usam `@Async("mailExecutor")` (pool pequeno e limitado em `MailConfig`). Nos ITs, `support/RecordedEmails` (`@Primary`) substitui o provedor; use `awaitFor` para esperar o envio assíncrono.
+- **Redefinição de senha**: `auth/PasswordResetService`. O token só vai no e-mail; o Redis guarda `pwreset:{sha256}` → `userId:tokenVersion` (TTL `app.password-reset.ttl`), consumido com GETDEL. `User.changePassword` incrementa o `token_version`, derrubando JWTs e links pendentes. `forgot-password` sempre responde 204 (não revela contas), com cooldown por usuário (`pwreset-cooldown:{userId}`).

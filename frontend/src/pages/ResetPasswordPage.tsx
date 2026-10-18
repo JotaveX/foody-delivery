@@ -1,0 +1,99 @@
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useEffect, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { Link, useNavigate, useSearchParams } from 'react-router'
+import { z } from 'zod'
+import { toApiError } from '../api/problem'
+import { resetPassword } from '../auth/passwordReset'
+import { AuthCard } from '../components/AuthCard'
+import { Field } from '../components/Field'
+import { FormAlert } from '../components/FormAlert'
+
+const resetSchema = z
+  .object({
+    password: z
+      .string()
+      .min(8, 'A senha deve ter no mínimo 8 caracteres.')
+      .max(72, 'A senha deve ter no máximo 72 caracteres.'),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    path: ['confirmPassword'],
+    message: 'As senhas não conferem.',
+  })
+
+type ResetForm = z.infer<typeof resetSchema>
+
+export function ResetPasswordPage() {
+  const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  // Read once: the token is then dropped from the address bar (history, screenshots, Referer).
+  const [token] = useState(() => searchParams.get('token'))
+  const [apiError, setApiError] = useState<string | null>(null)
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<ResetForm>({
+    resolver: zodResolver(resetSchema),
+    defaultValues: { password: '', confirmPassword: '' },
+  })
+
+  useEffect(() => {
+    if (searchParams.has('token')) {
+      setSearchParams({}, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
+
+  if (!token) {
+    return (
+      <AuthCard title="Redefinir senha" subtitle="Este link está incompleto.">
+        <FormAlert message="Link de redefinição inválido. Solicite um novo." />
+        <p className="auth-switch">
+          <Link to="/forgot-password">Pedir um novo link</Link>
+        </p>
+      </AuthCard>
+    )
+  }
+
+  const onSubmit = handleSubmit(async ({ password }) => {
+    setApiError(null)
+    try {
+      await resetPassword(token, password)
+      navigate('/login', {
+        replace: true,
+        state: { notice: 'Senha redefinida. Entre com a nova senha.' },
+      })
+    } catch (error) {
+      setApiError(toApiError(error).message)
+    }
+  })
+
+  return (
+    <AuthCard title="Redefinir senha" subtitle="Escolha uma nova senha para a sua conta.">
+      <form onSubmit={onSubmit} noValidate className="form">
+        <FormAlert message={apiError} />
+        <Field
+          label="Nova senha"
+          type="password"
+          autoComplete="new-password"
+          registration={register('password')}
+          error={errors.password}
+        />
+        <Field
+          label="Confirmar nova senha"
+          type="password"
+          autoComplete="new-password"
+          registration={register('confirmPassword')}
+          error={errors.confirmPassword}
+        />
+        <button type="submit" className="button-primary" disabled={isSubmitting}>
+          {isSubmitting ? 'Salvando…' : 'Salvar nova senha'}
+        </button>
+      </form>
+      <p className="auth-switch">
+        Link expirado? <Link to="/forgot-password">Pedir um novo</Link>
+      </p>
+    </AuthCard>
+  )
+}

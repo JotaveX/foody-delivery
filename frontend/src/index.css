@@ -78,6 +78,11 @@ a {
   margin-bottom: 1rem;
 }
 
+.forgot-link {
+  align-self: flex-end;
+  font-size: 0.875rem;
+}
+
 .auth-switch {
   text-align: center;
   margin: 1.25rem 0 0;

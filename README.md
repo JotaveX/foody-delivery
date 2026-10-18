@@ -97,7 +97,8 @@ retorne `ResponseEntity`.
 |---|---|---|
 | IP | `POST /auth/login` | 5/min |
 | IP | `POST /auth/register` | 3/min |
-| IP | `POST /auth/forgot-password` | 3/min (já configurado para quando a rota existir) |
+| IP | `POST /auth/forgot-password` | 3/min |
+| IP | `POST /auth/reset-password` | 5/min |
 | Usuário | toda requisição autenticada | 100/min |
 
 Os limites ficam em `app.rate-limit` no `application.yml` (`RATE_LIMIT_ENABLED=false` desliga
@@ -113,6 +114,20 @@ sub-rede do compose; o `docker-compose.prod.yml` fixa o Caddy em `172.30.0.10`).
 `X-Forwarded-For` que vem da internet pelo IP real do cliente. A API percorre o header da direita
 para a esquerda, pulando os proxies confiáveis, e o primeiro endereço não confiável é o do cliente.
 Nunca inclua uma faixa que clientes da internet alcancem diretamente.
+
+## Redefinição de senha
+
+1. `POST /auth/forgot-password` com `{ "email" }` responde **sempre `204`**, exista a conta ou não.
+   Se existir, gera um token aleatório de 256 bits e guarda no Redis só o **SHA-256** dele
+   (`pwreset:{hash}` → id do usuário e `token_version`, TTL de 30 min). O e-mail com o link
+   `…/reset-password?token=…` sai em segundo plano (`mailExecutor`), para o tempo de resposta não
+   denunciar contas existentes. Cada usuário recebe no máximo um e-mail por minuto, de qualquer IP.
+2. `POST /auth/reset-password` com `{ "token", "password" }` consome o token (`GETDEL`, uso único),
+   troca a senha e incrementa o `token_version`. Isso derruba todos os JWTs emitidos antes e
+   invalida os outros links pendentes. Token desconhecido, expirado ou já usado: `400`.
+
+O e-mail sai pelo `EmailSender`: Resend (API HTTP) em produção e Mailpit em dev
+(http://localhost:8025).
 
 ## Atualizações em tempo real (WebSocket + STOMP)
 

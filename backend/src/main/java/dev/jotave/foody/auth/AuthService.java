@@ -78,7 +78,7 @@ public class AuthService {
     return UserResponse.from(user, defaultAddress.orElse(null));
   }
 
-  private static String normalizeEmail(String email) {
+  static String normalizeEmail(String email) {
     return email.trim().toLowerCase(Locale.ROOT);
   }
 }

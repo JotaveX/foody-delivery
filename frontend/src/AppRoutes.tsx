@@ -2,8 +2,10 @@ import { Navigate, Route, Routes } from 'react-router'
 import { AddressesPage } from './addresses/AddressesPage'
 import { RequireAuth } from './auth/RequireAuth'
 import { AppLayout } from './components/AppLayout'
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
+import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { NewOrderPage } from './orders/NewOrderPage'
 import { OrderDetailPage } from './orders/OrderDetailPage'
 import { OrdersPage } from './orders/OrdersPage'
@@ -13,6 +15,8 @@ export function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>
           <Route index element={<Navigate to="/orders" replace />} />

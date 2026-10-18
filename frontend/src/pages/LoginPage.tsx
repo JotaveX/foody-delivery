@@ -27,7 +27,8 @@ export function LoginPage() {
     formState: { errors, isSubmitting },
   } = useForm<LoginForm>({ resolver: zodResolver(loginSchema) })
 
-  const from = (location.state as { from?: string } | null)?.from ?? '/'
+  const state = location.state as { from?: string; notice?: string } | null
+  const from = state?.from ?? '/'
 
   if (isAuthenticated) {
     return <Navigate to={from} replace />
@@ -45,6 +46,11 @@ export function LoginPage() {
 
   return (
     <AuthCard title="Entrar" subtitle="Acompanhe seus pedidos em tempo real.">
+      {state?.notice && (
+        <p role="status" className="notice">
+          {state.notice}
+        </p>
+      )}
       <form onSubmit={onSubmit} noValidate className="form">
         <FormAlert message={apiError} />
         <Field
@@ -61,6 +67,9 @@ export function LoginPage() {
           registration={register('password')}
           error={errors.password}
         />
+        <Link to="/forgot-password" className="forgot-link">
+          Esqueceu a senha?
+        </Link>
         <button type="submit" className="button-primary" disabled={isSubmitting}>
           {isSubmitting ? 'Entrando…' : 'Entrar'}
         </button>
