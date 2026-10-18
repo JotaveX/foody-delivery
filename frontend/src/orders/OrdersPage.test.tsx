@@ -198,23 +198,4 @@ describe('OrdersPage', () => {
 
     expect(await screen.findByRole('listitem', { name: 'Pedido #1' })).toBeInTheDocument()
   })
-
-  it('shows the live status in the header and applies pushed updates to the list', async () => {
-    const { listRequests } = mockOrders([orderSummary(1, 'RECEBIDO')])
-    renderApp('/orders')
-    await screen.findByRole('listitem', { name: 'Pedido #1' })
-    const banner = within(screen.getByRole('banner'))
-    expect(banner.getByText('Conectando…')).toBeInTheDocument()
-
-    const socket = FakeStompClient.latest!
-    act(() => socket.simulateConnect())
-    expect(banner.getByText('Ao vivo')).toBeInTheDocument()
-
-    act(() => socket.deliver(ORDERS_TOPIC, orderDetail(1, 'EM_PREPARO')))
-    expect(await within(card(1)).findByText('Em preparo')).toBeInTheDocument()
-    expect(listRequests).toHaveLength(1)
-
-    act(() => socket.simulateClose())
-    expect(banner.getByText('Reconectando…')).toBeInTheDocument()
-  })
 })
