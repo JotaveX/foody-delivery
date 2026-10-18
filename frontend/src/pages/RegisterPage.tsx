@@ -67,12 +67,12 @@ export function RegisterPage() {
   })
 
   return (
-    <AuthCard title="Criar conta" subtitle="Cadastre-se para acompanhar seus pedidos.">
+    <AuthCard title="Criar conta">
       <form onSubmit={onSubmit} noValidate className="form">
         <FormAlert message={apiError} />
 
         <fieldset>
-          <legend>Seus dados</legend>
+          <legend className="sr-only">Seus dados</legend>
           <Field
             label="Nome"
             autoComplete="name"
@@ -104,8 +104,19 @@ export function RegisterPage() {
           </div>
         </fieldset>
 
-        <button type="submit" className="button-primary" disabled={isSubmitting}>
-          {isSubmitting ? 'Criando conta…' : 'Criar conta'}
+        <button
+          type="submit"
+          className="btn btn-brand btn-block"
+          disabled={isSubmitting}
+          aria-busy={isSubmitting}
+        >
+          {isSubmitting ? (
+            'Criando conta…'
+          ) : (
+            <>
+              Criar conta <span aria-hidden="true">→</span>
+            </>
+          )}
         </button>
       </form>
       <p className="auth-switch">

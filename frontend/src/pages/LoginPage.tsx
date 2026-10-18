@@ -45,7 +45,7 @@ export function LoginPage() {
   })
 
   return (
-    <AuthCard title="Entrar" subtitle="Acompanhe seus pedidos em tempo real.">
+    <AuthCard title="Identifique-se">
       {state?.notice && (
         <p role="status" className="notice">
           {state.notice}
@@ -66,12 +66,21 @@ export function LoginPage() {
           autoComplete="current-password"
           registration={register('password')}
           error={errors.password}
+          labelAction={<Link to="/forgot-password">Esqueceu a senha?</Link>}
         />
-        <Link to="/forgot-password" className="forgot-link">
-          Esqueceu a senha?
-        </Link>
-        <button type="submit" className="button-primary" disabled={isSubmitting}>
-          {isSubmitting ? 'Entrando…' : 'Entrar'}
+        <button
+          type="submit"
+          className="btn btn-brand btn-block"
+          disabled={isSubmitting}
+          aria-busy={isSubmitting}
+        >
+          {isSubmitting ? (
+            'Entrando…'
+          ) : (
+            <>
+              Entrar <span aria-hidden="true">→</span>
+            </>
+          )}
         </button>
       </form>
       <p className="auth-switch">

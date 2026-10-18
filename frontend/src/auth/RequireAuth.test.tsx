@@ -9,7 +9,7 @@ describe('protected routes', () => {
   it('redirect to /login when there is no token', async () => {
     renderApp('/')
 
-    expect(await screen.findByRole('heading', { name: 'Entrar' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Identifique-se' })).toBeInTheDocument()
   })
 
   it('render the layout with the user name for a stored session', async () => {
@@ -33,7 +33,7 @@ describe('protected routes', () => {
 
     renderApp('/')
 
-    expect(await screen.findByRole('heading', { name: 'Entrar' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Identifique-se' })).toBeInTheDocument()
     expect(localStorage.getItem('foody.session')).toBeNull()
   })
 
@@ -44,7 +44,7 @@ describe('protected routes', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Sair' }))
 
-    expect(await screen.findByRole('heading', { name: 'Entrar' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Identifique-se' })).toBeInTheDocument()
     expect(localStorage.getItem('foody.session')).toBeNull()
   })
 })

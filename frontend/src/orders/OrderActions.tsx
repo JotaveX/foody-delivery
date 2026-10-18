@@ -1,20 +1,34 @@
 import { useCallback, useState } from 'react'
 import { toApiError } from '../api/problem'
 import { ConfirmDialog } from '../components/ConfirmDialog'
-import { NEXT_STATUSES, TRANSITION_LABEL } from './status'
+import { NEXT_STATUSES, TRANSITION_LABEL, TRANSITION_SHORT_LABEL } from './status'
 import { useChangeOrderStatus } from './queries'
 import type { OrderStatus } from './types'
 
 interface OrderActionsProps {
   orderId: number
   status: OrderStatus
+  /** "ticket": compact buttons on paper; "detail": the large buttons beside the order. */
+  variant?: 'ticket' | 'detail'
+  className?: string
 }
 
-/** Buttons for the transitions allowed from the current status; cancelling asks first. */
-export function OrderActions({ orderId, status }: OrderActionsProps) {
+/**
+ * The next step of the order as the main button ("Iniciar preparo →") and, when allowed, a neutral
+ * "Cancelar" that asks first.
+ */
+export function OrderActions({
+  orderId,
+  status,
+  variant = 'ticket',
+  className = 'ticket-actions',
+}: OrderActionsProps) {
   const mutation = useChangeOrderStatus()
   const [confirmingCancel, setConfirmingCancel] = useState(false)
   const next = NEXT_STATUSES[status]
+  const forward = next.find((s) => s !== 'CANCELADO')
+  const canCancel = next.includes('CANCELADO')
+  const detail = variant === 'detail'
 
   const change = (target: OrderStatus) =>
     mutation.mutate(
@@ -27,26 +41,38 @@ export function OrderActions({ orderId, status }: OrderActionsProps) {
   if (next.length === 0) return null
 
   return (
-    <div className="order-actions">
-      <div className="order-actions-buttons">
-        {next.map((target) => (
-          <button
-            key={target}
-            type="button"
-            className={target === 'CANCELADO' ? 'button-ghost button-ghost-danger' : 'button-ghost'}
-            disabled={mutation.isPending}
-            onClick={() => {
-              mutation.reset()
-              if (target === 'CANCELADO') setConfirmingCancel(true)
-              else change(target)
-            }}
-          >
-            {TRANSITION_LABEL[target]}
-          </button>
-        ))}
-      </div>
+    <div className={className}>
+      {forward && (
+        <button
+          type="button"
+          className={detail ? 'btn btn-brand btn-lg' : 'btn btn-ink'}
+          disabled={mutation.isPending}
+          aria-busy={mutation.isPending && !confirmingCancel}
+          onClick={() => {
+            mutation.reset()
+            change(forward)
+          }}
+        >
+          {(detail ? TRANSITION_LABEL : TRANSITION_SHORT_LABEL)[forward]}{' '}
+          <span aria-hidden="true">→</span>
+        </button>
+      )}
+      {canCancel && (
+        <button
+          type="button"
+          className={detail ? 'btn btn-outline btn-lg' : 'btn btn-outline'}
+          aria-label={detail ? undefined : `Cancelar pedido #${orderId}`}
+          disabled={mutation.isPending}
+          onClick={() => {
+            mutation.reset()
+            setConfirmingCancel(true)
+          }}
+        >
+          {(detail ? TRANSITION_LABEL : TRANSITION_SHORT_LABEL).CANCELADO}
+        </button>
+      )}
       {mutation.error && (
-        <p role="alert" className="field-error">
+        <p role="alert" className="action-error">
           {toApiError(mutation.error).message}
         </p>
       )}

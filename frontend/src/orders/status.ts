@@ -33,6 +33,21 @@ export const TRANSITION_LABEL: Record<OrderStatus, string> = {
   RECEBIDO: 'Receber',
   EM_PREPARO: 'Iniciar preparo',
   SAIU_PARA_ENTREGA: 'Saiu para entrega',
-  ENTREGUE: 'Marcar como entregue',
+  ENTREGUE: 'Entregue',
   CANCELADO: 'Cancelar pedido',
 }
+
+/** Shorter labels for the narrow tickets on the board. */
+export const TRANSITION_SHORT_LABEL: Record<OrderStatus, string> = {
+  ...TRANSITION_LABEL,
+  SAIU_PARA_ENTREGA: 'Saiu p/ entrega',
+  CANCELADO: 'Cancelar',
+}
+
+/** The path an order takes when nothing goes wrong: the timeline shows the steps still ahead. */
+export const HAPPY_PATH: OrderStatus[] = ['RECEBIDO', 'EM_PREPARO', 'SAIU_PARA_ENTREGA', 'ENTREGUE']
+
+/** The open statuses, one board column each. */
+export const OPEN_STATUSES: OrderStatus[] = ['RECEBIDO', 'EM_PREPARO', 'SAIU_PARA_ENTREGA']
+
+export const isTerminal = (status: OrderStatus) => NEXT_STATUSES[status].length === 0

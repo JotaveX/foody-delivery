@@ -93,12 +93,13 @@ describe('useOrderUpdates', () => {
       [7, 'EM_PREPARO'],
     ])
     expect(list.content[1]).toMatchObject({ itemCount: 2, updatedAt: '2026-10-17T16:00:00Z' })
-    // Summaries carry item previews, not the priced items of the detail.
+    // Summaries carry ticket lines (subtotal only), not the priced items of the detail.
     expect(list.content[1].items[0]).toEqual({
       productId: 1,
       name: 'X-Burguer',
       imageUrl: expect.stringContaining('x-burguer.webp'),
       quantity: 2,
+      subtotal: 49.8,
     })
     expect(list.content[1]).not.toHaveProperty('createdBy')
     // Patched in place: nothing was invalidated, so nothing will refetch.
@@ -146,6 +147,42 @@ describe('useOrderUpdates', () => {
     expect(list.content.map((o) => o.id)).toEqual([8])
     expect(list.totalElements).toBe(1)
     expect(queryClient.getQueryState(orderKeys.list(RECEIVED))?.isInvalidated).toBe(true)
+  })
+
+  it('inserts an order entering a filtered list in place when that list is complete', () => {
+    const { queryClient, client } = connected()
+    const preparing = { status: 'EM_PREPARO' as const, page: 0, size: 10 }
+    const at = (id: number, createdAt: string) => ({
+      ...orderSummary(id, 'EM_PREPARO'),
+      createdAt,
+    })
+    queryClient.setQueryData(
+      orderKeys.list(preparing),
+      listPage([at(9, '2026-10-17T16:00:00Z'), at(5, '2026-10-17T15:00:00Z')]),
+    )
+
+    push(client(), { ...orderDetail(7, 'EM_PREPARO'), createdAt: '2026-10-17T15:30:00Z' })
+
+    const list = queryClient.getQueryData<Page<OrderSummary>>(orderKeys.list(preparing))!
+    expect(list.content.map((o) => o.id)).toEqual([9, 7, 5])
+    expect(list.totalElements).toBe(3)
+    expect(queryClient.getQueryState(orderKeys.list(preparing))?.isInvalidated).toBe(false)
+  })
+
+  it('marks a list stale when an entering order belongs to a page it cannot see', () => {
+    const { queryClient, client } = connected()
+    const preparing = { status: 'EM_PREPARO' as const, page: 0, size: 10 }
+    // Only the newest of 12 orders is cached: the pushed one belongs somewhere further down.
+    queryClient.setQueryData(
+      orderKeys.list(preparing),
+      listPage([{ ...orderSummary(9, 'EM_PREPARO'), createdAt: '2026-10-17T16:00:00Z' }], 12),
+    )
+
+    push(client(), { ...orderDetail(7, 'EM_PREPARO'), createdAt: '2026-10-17T15:30:00Z' })
+
+    const list = queryClient.getQueryData<Page<OrderSummary>>(orderKeys.list(preparing))!
+    expect(list.content.map((o) => o.id)).toEqual([9])
+    expect(queryClient.getQueryState(orderKeys.list(preparing))?.isInvalidated).toBe(true)
   })
 
   it('reports reconnecting when the socket drops and catches up once it is back', () => {

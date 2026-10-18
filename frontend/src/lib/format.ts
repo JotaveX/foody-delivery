@@ -18,3 +18,11 @@ interface AddressLike {
 /** "Rua X, 10 · Bairro, Cidade/UF" */
 export const formatAddressSummary = (a: AddressLike) =>
   `${a.street}, ${a.number} · ${a.neighborhood}, ${a.city}/${a.state}`
+
+const amount = new Intl.NumberFormat('pt-BR', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
+
+/** "24,90": money on ticket lines, where the currency is implied. */
+export const formatAmount = (value: number) => amount.format(value)

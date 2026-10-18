@@ -87,11 +87,12 @@ export function orderSummary(id: number, status: OrderStatus): OrderSummary {
     status,
     totalAmount: 56.7,
     itemCount: 2,
-    items: orderItems.map(({ productId, name, imageUrl, quantity }) => ({
+    items: orderItems.map(({ productId, name, imageUrl, quantity, subtotal }) => ({
       productId,
       name,
       imageUrl,
       quantity,
+      subtotal,
     })),
     deliveryAddress,
     createdAt: '2026-10-17T15:30:00Z',

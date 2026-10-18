@@ -19,29 +19,55 @@ describe('OrderDetailPage', () => {
     )
     renderApp('/orders/7')
 
-    expect(await screen.findByRole('heading', { name: /Pedido #7/ })).toBeInTheDocument()
-    const rows = within(screen.getByRole('table')).getAllByRole('row')
+    const ticket = await screen.findByRole('article', { name: 'Pedido #7' })
+    expect(within(ticket).getByText('Em preparo')).toHaveClass('stamp', 'stamp-em-preparo')
+    const rows = within(within(ticket).getByRole('table')).getAllByRole('row')
     expect(rows.map((r) => r.textContent?.replace(/\s/g, ' '))).toEqual([
-      'ItemQtd.UnitárioSubtotal',
-      'X-Burguer2R$ 24,90R$ 49,80',
-      'Refrigerante Lata1R$ 6,90R$ 6,90',
-      'TotalR$ 56,70',
+      'QTDITEMVALOR',
+      '2X-Burguerun. R$ 24,9049,80',
+      '1Refrigerante Lataun. R$ 6,906,90',
     ])
-    expect(rows[1].querySelector('img')).toHaveAttribute(
-      'src',
-      expect.stringContaining('catalog/x-burguer.webp'),
-    )
-    const address = screen.getByRole('region', { name: 'Endereço de entrega' })
+    expect(within(ticket).getByText('TOTAL').parentElement).toHaveTextContent(/R\$\s56,70/)
+    const address = within(ticket).getByRole('region', { name: 'Entregar em' })
     expect(address).toHaveTextContent('Avenida Paulista, 1000')
     expect(address).toHaveTextContent('CEP 01310-100')
 
-    const timeline = within(screen.getByRole('region', { name: 'Histórico' }))
+    // What happened, the time between steps, then the steps still ahead.
+    const timeline = within(screen.getByRole('region', { name: 'Linha do tempo' }))
     const entries = await timeline.findAllByRole('listitem')
-    expect(entries[0]).toHaveTextContent('Pedido criado')
-    expect(entries[0]).toHaveTextContent('Maria Silva')
-    expect(entries[1]).toHaveTextContent('Recebido → Em preparo')
-    expect(entries[1]).toHaveTextContent('Operador')
+    expect(entries).toHaveLength(4)
+    expect(entries[0]).toHaveTextContent('Pedido criado · Maria Silva')
+    expect(entries[0]).toHaveTextContent('+10 min')
+    expect(entries[1]).toHaveTextContent('Recebido → Em preparo · Operador')
+    expect(entries[1]).toHaveClass('timeline-step-current')
+    expect(entries[2]).toHaveTextContent('Saiu para entregapróxima etapa')
+    expect(entries[2]).toHaveClass('timeline-step-future')
+    expect(entries[3]).toHaveTextContent('Entregue')
     expect(screen.getByRole('button', { name: 'Saiu para entrega' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancelar pedido' })).toBeInTheDocument()
+  })
+
+  it('shows a cancelled order as closed, without actions or future steps', async () => {
+    server.use(
+      http.get('/api/orders/7', () =>
+        HttpResponse.json({ ...orderDetail(7, 'CANCELADO'), updatedAt: '2026-10-17T15:42:00Z' }),
+      ),
+      http.get('/api/orders/7/history', () =>
+        HttpResponse.json([
+          history[0],
+          { ...history[1], toStatus: 'CANCELADO', changedAt: '2026-10-17T15:42:00Z' },
+        ]),
+      ),
+    )
+    renderApp('/orders/7')
+
+    const timeline = within(await screen.findByRole('region', { name: 'Linha do tempo' }))
+    const entries = await timeline.findAllByRole('listitem')
+    expect(entries).toHaveLength(2)
+    expect(entries[1]).toHaveClass('timeline-step-cancelled')
+    expect(screen.getByText(/Pedido encerrado: cancelado/)).toBeInTheDocument()
+    expect(screen.getByText(/Do pedido ao cancelamento/)).toHaveTextContent('12 min')
+    expect(screen.queryByRole('button', { name: /Cancelar/ })).not.toBeInTheDocument()
   })
 
   it('shows not found for an unknown order', async () => {

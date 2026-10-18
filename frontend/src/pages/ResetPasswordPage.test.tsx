@@ -37,7 +37,7 @@ describe('ResetPasswordPage', () => {
     await user.type(screen.getByLabelText('Confirmar nova senha'), 'nova-s3nha')
     await user.click(screen.getByRole('button', { name: 'Salvar nova senha' }))
 
-    expect(await screen.findByRole('heading', { name: 'Entrar' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Identifique-se' })).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('Senha redefinida.')
     expect(sentBody).toEqual({ token: 'abc', password: 'nova-s3nha' })
   })

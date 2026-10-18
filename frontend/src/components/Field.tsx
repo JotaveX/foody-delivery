@@ -1,4 +1,4 @@
-import { useId, type InputHTMLAttributes } from 'react'
+import { useId, type InputHTMLAttributes, type ReactNode } from 'react'
 import type { FieldError, UseFormRegisterReturn } from 'react-hook-form'
 
 interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -7,15 +7,33 @@ interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
   error?: FieldError
   hint?: string
   className?: string
+  /** Shown on the label's line, at the right (e.g. "Esqueceu a senha?"). */
+  labelAction?: ReactNode
 }
 
-export function Field({ label, registration, error, hint, className, ...input }: FieldProps) {
+export function Field({
+  label,
+  registration,
+  error,
+  hint,
+  className,
+  labelAction,
+  ...input
+}: FieldProps) {
   const id = useId()
   const messageId = `${id}-message`
   const message = error?.message ?? hint
+  const labelElement = <label htmlFor={id}>{label}</label>
   return (
     <div className={['field', className].filter(Boolean).join(' ')}>
-      <label htmlFor={id}>{label}</label>
+      {labelAction ? (
+        <div className="field-label-row">
+          {labelElement}
+          {labelAction}
+        </div>
+      ) : (
+        labelElement
+      )}
       <input
         id={id}
         aria-invalid={error ? true : undefined}

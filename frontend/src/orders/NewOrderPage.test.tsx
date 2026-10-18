@@ -149,10 +149,10 @@ describe('NewOrderPage', () => {
 
     const cart = within(screen.getByRole('list', { name: 'Itens do pedido' }))
     expect(cart.getByRole('listitem', { name: 'X-Burguer' })).toHaveTextContent(
-      /2× X-Burguer\s*R\$\s49,80\s*R\$\s24,90 cada/,
+      /2x X-Burguer\s*49,80\s*un\. R\$\s24,90/,
     )
     expect(cart.getByRole('listitem', { name: 'Refrigerante Lata' })).toHaveTextContent(
-      /1× Refrigerante Lata\s*R\$\s6,90/,
+      /1x Refrigerante Lata\s*6,90/,
     )
 
     await user.click(screen.getByRole('button', { name: 'Diminuir X-Burguer' }))

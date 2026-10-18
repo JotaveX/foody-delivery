@@ -55,11 +55,11 @@ const resolver: Resolver<NewOrderForm> = (values, context, options) =>
 export function NewOrderPage() {
   const addresses = useAddresses()
   return (
-    <section>
+    <section className="new-order">
       <Link to="/orders" className="back-link">
-        ← Pedidos
+        ← Voltar ao quadro
       </Link>
-      <h1>Novo pedido</h1>
+      <h1 className="page-title">Novo pedido</h1>
       <QueryState
         isPending={addresses.isPending}
         error={addresses.error}
@@ -168,16 +168,19 @@ function NewOrderFormView({ addresses }: { addresses: Address[] }) {
 
         <div className="order-layout">
           <div className="order-main">
-            <section className="card">
-              <Field
-                label="Cliente"
-                registration={register('customerName')}
-                error={errors.customerName}
-              />
-            </section>
+            <Field
+              label="Cliente"
+              autoComplete="off"
+              registration={register('customerName')}
+              error={errors.customerName}
+              className="customer-field"
+            />
 
-            <section className="card" aria-labelledby="order-menu-title">
-              <h2 id="order-menu-title">Cardápio</h2>
+            <section className="panel" aria-labelledby="order-menu-title">
+              <div className="section-head">
+                <h2 id="order-menu-title">Cardápio</h2>
+                {products.data && <span className="count">{products.data.length} itens</span>}
+              </div>
               <QueryState
                 isPending={products.isPending}
                 error={products.error}
@@ -194,11 +197,13 @@ function NewOrderFormView({ addresses }: { addresses: Address[] }) {
               </QueryState>
             </section>
 
-            <section className="card" aria-labelledby="order-address-title">
-              <h2 id="order-address-title">Entrega</h2>
+            <section className="panel" aria-labelledby="order-address-title">
+              <div className="section-head">
+                <h2 id="order-address-title">Entrega</h2>
+              </div>
               {hasAddresses ? (
                 <fieldset className="address-options">
-                  <legend>Endereço de entrega</legend>
+                  <legend className="label">Endereço de entrega</legend>
                   {addresses.map((a) => (
                     <label key={a.id} className="address-option">
                       <input type="radio" value={String(a.id)} {...register('addressChoice')} />
@@ -239,7 +244,6 @@ function NewOrderFormView({ addresses }: { addresses: Address[] }) {
               )}
             </section>
           </div>
-
           <CartSummary lines={lines} error={cartError} isSubmitting={mutation.isPending} />
         </div>
       </form>

@@ -29,18 +29,18 @@ export interface OrderSummary {
   updatedAt: string
 }
 
-/** What the order list shows of each item (thumbnails). */
+/** What the order list shows of each item: one ticket line. */
 export interface OrderItemPreview {
   productId: number
   name: string
   imageUrl: string
   quantity: number
+  subtotal: number
 }
 
 /** unitPrice is the product price when the order was created. */
 export interface OrderItem extends OrderItemPreview {
   unitPrice: number
-  subtotal: number
 }
 
 export interface OrderDetail extends Omit<OrderSummary, 'itemCount' | 'items'> {

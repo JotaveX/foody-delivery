@@ -13,7 +13,7 @@ interface QueryStateProps {
 export function QueryState({ isPending, error, loadingText, onRetry, children }: QueryStateProps) {
   if (isPending) {
     return (
-      <p className="muted" role="status" aria-busy="true">
+      <p className="state-loading" role="status" aria-busy="true">
         {loadingText}
       </p>
     )
@@ -23,7 +23,7 @@ export function QueryState({ isPending, error, loadingText, onRetry, children }:
       <div role="alert" className="form-alert state-error">
         <span>{toApiError(error).message}</span>
         {onRetry && (
-          <button type="button" className="button-ghost" onClick={onRetry}>
+          <button type="button" className="btn-quiet" onClick={onRetry}>
             Tentar novamente
           </button>
         )}

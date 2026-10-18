@@ -22,7 +22,7 @@ export function ProductImage({ src, alt, width, height, className = '' }: Produc
         className={`product-image product-image-placeholder ${className}`}
         style={{ width, height }}
       >
-        <span aria-hidden="true">🍽️</span>
+        <span aria-hidden="true">SEM FOTO</span>
       </span>
     )
   }

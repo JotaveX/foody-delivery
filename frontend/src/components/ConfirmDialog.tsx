@@ -45,16 +45,20 @@ export function ConfirmDialog({
         className="dialog"
         onClick={(event) => event.stopPropagation()}
       >
-        <h2 id={titleId}>{title}</h2>
-        <div id={descriptionId}>{children}</div>
-        <div className="form-actions">
-          <button ref={cancelRef} type="button" className="button-ghost" onClick={onCancel}>
-            {cancelLabel}
-          </button>
-          <button type="button" className="button-danger" disabled={busy} onClick={onConfirm}>
-            {busy ? busyLabel : confirmLabel}
-          </button>
+        <div className="paper">
+          <h2 id={titleId}>{title}</h2>
+          <div id={descriptionId}>{children}</div>
+          <hr className="rule" />
+          <div className="form-actions">
+            <button ref={cancelRef} type="button" className="btn btn-outline" onClick={onCancel}>
+              {cancelLabel}
+            </button>
+            <button type="button" className="btn btn-ink" disabled={busy} onClick={onConfirm}>
+              {busy ? busyLabel : confirmLabel}
+            </button>
+          </div>
         </div>
+        <div className="tear" aria-hidden="true" />
       </div>
     </div>
   )

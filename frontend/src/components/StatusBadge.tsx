@@ -1,10 +1,9 @@
 import { STATUS_LABEL } from '../orders/status'
 import type { OrderStatus } from '../orders/types'
 
-export function StatusBadge({ status }: { status: OrderStatus }) {
-  return (
-    <span className={`status-badge status-${status.toLowerCase().replaceAll('_', '-')}`}>
-      {STATUS_LABEL[status]}
-    </span>
-  )
+/** The status as a rubber stamp on the ticket. */
+export function StatusBadge({ status, small = false }: { status: OrderStatus; small?: boolean }) {
+  const classes = ['stamp', `stamp-${status.toLowerCase().replaceAll('_', '-')}`]
+  if (small) classes.push('stamp-sm')
+  return <span className={classes.join(' ')}>{STATUS_LABEL[status]}</span>
 }

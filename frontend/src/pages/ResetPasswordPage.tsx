@@ -70,7 +70,7 @@ export function ResetPasswordPage() {
   })
 
   return (
-    <AuthCard title="Redefinir senha" subtitle="Escolha uma nova senha para a sua conta.">
+    <AuthCard title="Redefinir senha">
       <form onSubmit={onSubmit} noValidate className="form">
         <FormAlert message={apiError} />
         <Field
@@ -87,8 +87,19 @@ export function ResetPasswordPage() {
           registration={register('confirmPassword')}
           error={errors.confirmPassword}
         />
-        <button type="submit" className="button-primary" disabled={isSubmitting}>
-          {isSubmitting ? 'Salvando…' : 'Salvar nova senha'}
+        <button
+          type="submit"
+          className="btn btn-brand btn-block"
+          disabled={isSubmitting}
+          aria-busy={isSubmitting}
+        >
+          {isSubmitting ? (
+            'Salvando…'
+          ) : (
+            <>
+              Salvar nova senha <span aria-hidden="true">→</span>
+            </>
+          )}
         </button>
       </form>
       <p className="auth-switch">

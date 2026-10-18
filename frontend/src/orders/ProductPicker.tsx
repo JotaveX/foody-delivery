@@ -75,7 +75,7 @@ interface ProductCardProps {
 function ProductCard({ product, quantity, onQuantityChange }: ProductCardProps) {
   return (
     <li
-      className={`product-card${quantity > 0 ? ' product-card-selected' : ''}`}
+      className={`paper product-card${quantity > 0 ? ' product-card-selected' : ''}`}
       aria-label={product.name}
     >
       <ProductImage
@@ -85,12 +85,17 @@ function ProductCard({ product, quantity, onQuantityChange }: ProductCardProps) 
         height={240}
         className="product-card-image"
       />
+      {quantity > 0 && (
+        <span className="product-qty" aria-hidden="true">
+          {quantity}x
+        </span>
+      )}
       <div className="product-card-body">
         <h4>{product.name}</h4>
-        <p className="muted">{product.description}</p>
+        <p>{product.description}</p>
       </div>
       <div className="product-card-footer">
-        <strong>{formatBRL(product.price)}</strong>
+        <span className="product-price">{formatBRL(product.price)}</span>
         <div className="stepper">
           <button
             type="button"

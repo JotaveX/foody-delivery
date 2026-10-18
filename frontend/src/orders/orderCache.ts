@@ -10,9 +10,10 @@ type ListKey = ReturnType<typeof orderKeys.list>
  * replaced and every cached list page that shows the order is patched in place.
  *
  * Lists are newest first, so a brand new order goes on top of the first page of every list whose
- * filter it matches. When a status change makes an order leave or enter a filtered list, its exact
- * page cannot be known locally; that list is patched as well as possible and marked stale, so it
- * reloads the next time it is shown.
+ * filter it matches. When a status change makes an order enter a filtered list that is complete on
+ * its first page (like the board columns), it is inserted in place. Otherwise its exact page cannot
+ * be known locally; that list is patched as well as possible and marked stale, so it reloads the
+ * next time it is shown.
  */
 export function applyOrderUpdate(queryClient: QueryClient, order: OrderDetail) {
   queryClient.setQueryData<OrderDetail>(orderKeys.detail(order.id), (cached) =>
@@ -58,9 +59,18 @@ function patchPage(
     const content = [order, ...page.content].slice(0, page.size)
     return { next: withTotal(page, content, page.totalElements + 1), stale: false }
   }
+  const complete = page.page === 0 && page.totalElements < page.size
+  if (complete) {
+    const content = [...page.content, order].sort(newestFirst)
+    return { next: withTotal(page, content, page.totalElements + 1), stale: false }
+  }
   // Belongs to this filter somewhere we cannot see.
   return { next: page, stale: true }
 }
+
+/** Same order as the API: createdAt, then id, both descending. */
+const newestFirst = (a: OrderSummary, b: OrderSummary) =>
+  Date.parse(b.createdAt) - Date.parse(a.createdAt) || b.id - a.id
 
 function withTotal(page: Page<OrderSummary>, content: OrderSummary[], total: number) {
   const totalElements = Math.max(total, 0)
@@ -73,11 +83,12 @@ function toSummary(order: OrderDetail): OrderSummary {
   return {
     ...summary,
     itemCount: items.length,
-    items: items.map(({ productId, name, imageUrl, quantity }) => ({
+    items: items.map(({ productId, name, imageUrl, quantity, subtotal }) => ({
       productId,
       name,
       imageUrl,
       quantity,
+      subtotal,
     })),
   }
 }

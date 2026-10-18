@@ -53,6 +53,6 @@ describe('LoginPage', () => {
     await user.click(screen.getByRole('button', { name: 'Entrar' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('E-mail ou senha inválidos.')
-    expect(screen.getByRole('heading', { name: 'Entrar' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Identifique-se' })).toBeInTheDocument()
   })
 })

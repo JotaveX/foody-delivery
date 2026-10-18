@@ -35,12 +35,14 @@ export function ForgotPasswordPage() {
   })
 
   return (
-    <AuthCard title="Esqueci a senha" subtitle="Enviaremos um link para você criar uma nova senha.">
+    <AuthCard
+      title="Esqueci a senha"
+      subtitle="Enviamos por e-mail um link para criar uma nova senha. Ele vale por 30 minutos."
+    >
       {sent ? (
         // The API answers the same for unknown e-mails, so the message cannot say more than this.
         <p role="status" className="notice">
-          Se houver uma conta com esse e-mail, você vai receber o link em instantes. Ele vale por 30
-          minutos.
+          Se houver uma conta com esse e-mail, você vai receber o link em instantes.
         </p>
       ) : (
         <form onSubmit={onSubmit} noValidate className="form">
@@ -52,8 +54,19 @@ export function ForgotPasswordPage() {
             registration={register('email')}
             error={errors.email}
           />
-          <button type="submit" className="button-primary" disabled={isSubmitting}>
-            {isSubmitting ? 'Enviando…' : 'Enviar link'}
+          <button
+            type="submit"
+            className="btn btn-brand btn-block"
+            disabled={isSubmitting}
+            aria-busy={isSubmitting}
+          >
+            {isSubmitting ? (
+              'Enviando…'
+            ) : (
+              <>
+                Enviar link <span aria-hidden="true">→</span>
+              </>
+            )}
           </button>
         </form>
       )}
