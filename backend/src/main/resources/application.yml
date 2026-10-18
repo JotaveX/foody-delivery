@@ -35,6 +35,11 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
+      # Everything kept in Redis is optional for a request (the cache falls back to the database,
+      # the rate limit fails open), so a Redis that hangs must fail fast instead of holding the
+      # request for Lettuce's 60s default.
+      timeout: 1s
+      connect-timeout: 1s
 
   mail:
     host: ${SMTP_HOST}

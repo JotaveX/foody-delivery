@@ -75,3 +75,28 @@ O front se conecta em `/ws` (STOMP sobre WebSocket puro) e assina `/topic/orders
   mensagem para os seus clientes pelo broker local. Assim, com várias instâncias, o cliente recebe
   a mudança mesmo conectado em outra instância que não a que a processou.
 - **Origens:** `WS_ALLOWED_ORIGINS` (padrões separados por vírgula; em dev, `http://localhost:*`).
+
+## Cache de pedidos (Spring Cache + Redis)
+
+O `GET /orders/{id}` é cacheado no Redis. Para ser honesto: **não havia gargalo medido**. Uma leitura
+por id no SQLite é rápida, e o cache está aqui para demonstrar a estratégia de invalidação, não
+por necessidade de desempenho.
+
+- **O que é cacheado:** o DTO `OrderDetail` em JSON (serializer tipado, sem informação de tipo
+  polimórfica no payload), nunca a entidade JPA. A chave é `cache:order-details:{id}` e o TTL é de
+  10 minutos.
+- **Invalidação orientada a eventos:** quem remove a entrada é o `OrderCacheEvictor`, que escuta o
+  `OrderChangedEvent` com `@TransactionalEventListener(AFTER_COMMIT)`. A remoção não fica no
+  método que altera o pedido: se ficasse, uma leitura concorrente poderia recolocar no cache um
+  estado que ainda não foi commitado, ou que nunca será, caso a transação falhe depois.
+- **Listagem fora do cache:** cada combinação de página, tamanho e filtro de status seria uma
+  entrada, e qualquer mudança de pedido teria de invalidar todas. O custo seria alto e o ganho
+  pequeno, para uma consulta indexada que já é barata.
+- **Redis fora do ar:** um `CacheErrorHandler` registra o erro em log e trata como cache miss, e a
+  leitura segue para o banco. Os timeouts do Redis são de 1s (`spring.data.redis.timeout`), para
+  que um Redis travado não segure a requisição. Uma entrada que não desserializa (por exemplo, após
+  mudar o formato do DTO) cai no mesmo caminho.
+- **Limite conhecido:** uma leitura que começou antes de um commit pode gravar no cache o estado
+  anterior logo depois da remoção (corrida clássica do cache-aside). O TTL limita essa janela a
+  10 minutos. O tempo real (WebSocket) não depende do cache, porque publica o snapshot do próprio
+  evento.

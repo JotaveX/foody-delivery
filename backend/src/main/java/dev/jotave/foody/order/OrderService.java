@@ -9,6 +9,7 @@ import dev.jotave.foody.order.OrderResponses.PageResponse;
 import dev.jotave.foody.user.User;
 import dev.jotave.foody.user.UserRepository;
 import java.util.List;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -54,6 +55,7 @@ public class OrderService {
     return publish(order, null, userId);
   }
 
+  // Not cached, see OrderCacheConfig.
   @Transactional(readOnly = true)
   public PageResponse<OrderSummary> list(OrderStatus status, int page, int size) {
     var pageable =
@@ -68,6 +70,8 @@ public class OrderService {
         result.getTotalPages());
   }
 
+  // Evicted by OrderCacheEvictor after every committed change.
+  @Cacheable(cacheNames = OrderCacheConfig.ORDER_DETAILS, key = "#orderId")
   @Transactional(readOnly = true)
   public OrderDetail get(long orderId) {
     return OrderMapper.toDetail(find(orderId));
