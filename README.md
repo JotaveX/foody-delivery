@@ -75,6 +75,27 @@ cd backend && ./mvnw spring-boot:run     # API
 cd frontend && npm install && npm run dev
 ```
 
+### Testes E2E (Playwright)
+
+Ficam em `e2e/` e rodam contra a stack de dev completa (back, front, Redis e Mailpit), definida
+pelo `docker-compose.e2e.yml` sobre o `docker-compose.yml`:
+
+```bash
+cd e2e && npm install && npx playwright install chromium
+npm run stack:up        # build do backend + Vite em container; espera os healthchecks
+npm test                # relatório em e2e/playwright-report (npm run report)
+npm run stack:down
+```
+
+Cenários: cadastro → primeiro endereço → login → pedido com dois itens; status em tempo real entre
+dois navegadores (sem recarregar nem refazer a busca); recuperação de senha pelo link lido na API
+do Mailpit; e endereço novo marcado como padrão no pedido. O ViaCEP é simulado no navegador, então
+a suíte não depende da internet.
+
+O front sobe na porta 5173. Para rodar junto com o `npm run dev`, use outra:
+`E2E_FRONT_PORT=5174 npm run stack:up` e `E2E_FRONT_PORT=5174 npm test`. No CI, o job `e2e` roda
+a suíte e, se falhar, publica relatório, traces e logs da stack como artifact.
+
 ## Idempotência e rate limit
 
 Ambos guardam estado no Redis, então valem para todas as instâncias da API.

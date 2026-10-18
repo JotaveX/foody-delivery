@@ -7,6 +7,7 @@ Desafio técnico de processo seletivo: um mini rastreador de pedidos de delivery
 ```
 backend/    Java 21, Spring Boot 3, Maven
 frontend/   React, Vite, TypeScript
+e2e/        Playwright contra a stack de dev completa (docker-compose.e2e.yml)
 infra/      Deploy (docker compose, Caddy, Litestream; front no Cloudflare Pages) — só local, no .gitignore
 ```
 
@@ -102,6 +103,16 @@ npm run build                   # type-check + build de produção em dist/
 npm run lint                    # lint (oxlint)
 npm test                        # testes (Vitest em watch; `npm run test:ci` roda uma vez)
 ```
+
+### E2E (`e2e/`)
+
+```bash
+npm run stack:up                # sobe back + front + Redis + Mailpit (docker-compose.yml + docker-compose.e2e.yml)
+npm test                        # Playwright (Chromium); E2E_FRONT_PORT muda a porta do front (default 5173)
+npm run stack:down
+```
+
+A suíte roda com 1 worker: cadastros simultâneos hoje falham com `SQLITE_BUSY` (409).
 
 ### Serviços locais (`docker-compose.yml` na raiz)
 

@@ -1,0 +1,58 @@
+# Full dev stack for the Playwright suite (e2e/): adds the backend and the Vite dev server on top
+# of docker-compose.yml (Redis and Mailpit). No real credentials, same defaults as local dev.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d --build --wait
+#   docker compose -f docker-compose.yml -f docker-compose.e2e.yml down
+#
+# E2E_FRONT_PORT (default 5173) moves the front's host port, e.g. to run beside `npm run dev`;
+# Playwright reads the same variable.
+services:
+  backend:
+    build: ./backend
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      REDIS_HOST: redis
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      # Every test signs up and logs in from the same IP, well past the per-IP limits.
+      RATE_LIMIT_ENABLED: "false"
+      # The reset link in the e-mail points at the front as the browser sees it.
+      PASSWORD_RESET_URL: http://localhost:${E2E_FRONT_PORT:-5173}/reset-password
+      CORS_ALLOWED_ORIGINS: http://localhost:${E2E_FRONT_PORT:-5173}
+    # Only the front (Vite proxy) talks to it, over the compose network: no host port. The SQLite
+    # file lives in the container (/data), so every `up` after a `down` starts empty.
+    depends_on:
+      redis:
+        condition: service_healthy
+      mailpit:
+        condition: service_healthy
+    healthcheck:
+      # Readiness includes Redis: the suite should only start once the API can serve requests.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/actuator/health/readiness"]
+      interval: 5s
+      timeout: 3s
+      start_period: 90s
+      retries: 10
+
+  frontend:
+    image: node:24-alpine
+    working_dir: /app
+    # Dependencies are installed inside the container (the host's node_modules may be built for
+    # another platform); the anonymous volume keeps them out of the bind-mounted source.
+    command: sh -c "npm ci --no-audit --no-fund && npm run dev -- --host 0.0.0.0 --port 5173 --strictPort"
+    environment:
+      BACKEND_URL: http://backend:8080
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "${E2E_FRONT_PORT:-5173}:5173"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:5173/"]
+      interval: 5s
+      timeout: 3s
+      start_period: 120s
+      retries: 10
