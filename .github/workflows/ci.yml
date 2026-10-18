@@ -111,7 +111,7 @@ jobs:
 
       - name: Start Redis and Mailpit
         working-directory: .
-        run: docker compose up -d --wait
+        run: docker compose up -d --wait redis mailpit
 
       - name: Install dependencies
         run: |

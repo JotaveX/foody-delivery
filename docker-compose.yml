@@ -1,4 +1,10 @@
-# Local stand-ins for external dependencies. No real credentials required.
+# The whole app locally, with no real credentials: `docker compose up --build`.
+# - app:     http://localhost:5173 (the SPA, with /api and /ws proxied to the backend)
+# - Swagger: http://localhost:8080/swagger-ui.html
+# - Mailpit: http://localhost:8025 (password reset e-mails)
+#
+# Developing with hot reload instead: `docker compose up -d redis mailpit`, then the backend
+# (./mvnw spring-boot:run) and the frontend (npm run dev) straight on the host.
 services:
   redis:
     image: redis:7-alpine
@@ -20,3 +26,35 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  # Dev profile (the default): dev-only JWT secret, e-mail through Mailpit.
+  backend:
+    build: ./backend
+    environment:
+      REDIS_HOST: redis
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      # The browser's origin, checked on the /ws handshake (REST calls are same-origin via nginx).
+      CORS_ALLOWED_ORIGINS: http://localhost:${FRONTEND_PORT:-5173}
+      PASSWORD_RESET_URL: http://localhost:${FRONTEND_PORT:-5173}/reset-password
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    volumes:
+      - backend-data:/data
+    depends_on:
+      redis:
+        condition: service_healthy
+      mailpit:
+        condition: service_healthy
+
+  # Production build of the SPA behind nginx, which plays the role of the Vite proxy.
+  frontend:
+    build: ./frontend
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  backend-data:

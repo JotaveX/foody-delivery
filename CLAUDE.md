@@ -85,7 +85,7 @@ infra/      Deploy (docker compose, Caddy, Litestream; front no Cloudflare Pages
 ### Backend (`backend/`)
 
 ```bash
-./mvnw spring-boot:run          # sobe a API em dev (perfil dev é o default; requer docker compose up)
+./mvnw spring-boot:run          # sobe a API em dev (perfil dev é o default; requer docker compose up -d redis mailpit)
 ./mvnw test                     # testes unitários (*Test, Surefire)
 ./mvnw verify                   # unitários + integração (*IT, Failsafe; requer Docker p/ Testcontainers)
 ./mvnw -Dtest=NomeDaClasseTest test       # um teste unitário específico
@@ -111,14 +111,15 @@ npm test                        # Playwright (Chromium) contra a stack de dev j�
 npm run report                  # abre o último relatório HTML
 ```
 
-Requer `docker compose up -d`, o backend com `RATE_LIMIT_ENABLED=false ./mvnw spring-boot:run` (o `globalSetup` recusa rodar com rate limit) e `npm run dev` no front. `E2E_FRONT_PORT` muda a porta do front (default 5173).
+Requer `docker compose up -d redis mailpit`, o backend com `RATE_LIMIT_ENABLED=false ./mvnw spring-boot:run` (o `globalSetup` recusa rodar com rate limit) e `npm run dev` no front. `E2E_FRONT_PORT` muda a porta do front (default 5173).
 
 A suíte roda com 1 worker: cadastros simultâneos hoje falham com `SQLITE_BUSY` (409).
 
 ### Serviços locais (`docker-compose.yml` na raiz)
 
 ```bash
-docker compose up -d            # na raiz: Redis (6379) e Mailpit (SMTP 1025, UI http://localhost:8025)
+docker compose up -d redis mailpit   # só as dependências: Redis (6379) e Mailpit (SMTP 1025, UI http://localhost:8025)
+docker compose up --build            # stack inteira: + backend (8080) e frontend em nginx (5173, proxy de /api e /ws)
 docker compose down
 ```
 
