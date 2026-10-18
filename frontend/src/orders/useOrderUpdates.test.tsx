@@ -93,7 +93,14 @@ describe('useOrderUpdates', () => {
       [7, 'EM_PREPARO'],
     ])
     expect(list.content[1]).toMatchObject({ itemCount: 2, updatedAt: '2026-10-17T16:00:00Z' })
-    expect(list.content[1]).not.toHaveProperty('items')
+    // Summaries carry item previews, not the priced items of the detail.
+    expect(list.content[1].items[0]).toEqual({
+      productId: 1,
+      name: 'X-Burguer',
+      imageUrl: expect.stringContaining('x-burguer.webp'),
+      quantity: 2,
+    })
+    expect(list.content[1]).not.toHaveProperty('createdBy')
     // Patched in place: nothing was invalidated, so nothing will refetch.
     expect(queryClient.getQueryState(orderKeys.list(ALL))?.isInvalidated).toBe(false)
     expect(queryClient.getQueryState(orderKeys.detail(7))?.isInvalidated).toBe(false)

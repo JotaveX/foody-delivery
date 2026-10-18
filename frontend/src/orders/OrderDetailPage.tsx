@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { Link, useParams } from 'react-router'
+import { ProductImage } from '../components/ProductImage'
 import { QueryState } from '../components/QueryState'
 import { StatusBadge } from '../components/StatusBadge'
 import { formatBRL, formatDateTime, formatZipCode } from '../lib/format'
@@ -64,8 +65,19 @@ export function OrderDetailPage() {
                   </thead>
                   <tbody>
                     {order.data.items.map((item) => (
-                      <tr key={item.id}>
-                        <td>{item.name}</td>
+                      <tr key={item.productId}>
+                        <td>
+                          <span className="item-cell">
+                            <ProductImage
+                              src={item.imageUrl}
+                              alt=""
+                              width={48}
+                              height={48}
+                              className="thumbnail"
+                            />
+                            {item.name}
+                          </span>
+                        </td>
                         <td>{item.quantity}</td>
                         <td>{formatBRL(item.unitPrice)}</td>
                         <td>{formatBRL(item.subtotal)}</td>

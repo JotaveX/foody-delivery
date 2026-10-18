@@ -23,21 +23,27 @@ export interface OrderSummary {
   status: OrderStatus
   totalAmount: number
   itemCount: number
+  items: OrderItemPreview[]
   deliveryAddress: DeliveryAddress
   createdAt: string
   updatedAt: string
 }
 
-export interface OrderItem {
-  id: number
+/** What the order list shows of each item (thumbnails). */
+export interface OrderItemPreview {
+  productId: number
   name: string
+  imageUrl: string
   quantity: number
-  unitPrice: number
-  subtotal: number
-  imageUrl: string | null
 }
 
-export interface OrderDetail extends Omit<OrderSummary, 'itemCount'> {
+/** unitPrice is the product price when the order was created. */
+export interface OrderItem extends OrderItemPreview {
+  unitPrice: number
+  subtotal: number
+}
+
+export interface OrderDetail extends Omit<OrderSummary, 'itemCount' | 'items'> {
   items: OrderItem[]
   createdBy: UserRef
 }
@@ -57,8 +63,8 @@ export interface Page<T> {
   totalPages: number
 }
 
+/** Only the product and the quantity: the price always comes from the catalog, on the server. */
 export interface NewOrderItem {
-  name: string
+  productId: number
   quantity: number
-  unitPrice: number
 }

@@ -1,14 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import {
-  FormProvider,
-  useFieldArray,
-  useForm,
-  useWatch,
-  type Path,
-  type Resolver,
-} from 'react-hook-form'
+import { FormProvider, useForm, useWatch, type Path, type Resolver } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router'
 import { z } from 'zod'
 import { AddressFields } from '../addresses/AddressFields'
@@ -22,35 +15,19 @@ import { addressKeys, useAddresses } from '../addresses/useAddresses'
 import { toApiError } from '../api/problem'
 import type { Address } from '../auth/types'
 import { useAuth } from '../auth/useAuth'
+import { productKeys, useProducts } from '../catalog/useProducts'
 import { Field } from '../components/Field'
 import { FormAlert } from '../components/FormAlert'
 import { QueryState } from '../components/QueryState'
-import { formatBRL, formatZipCode } from '../lib/format'
+import { formatZipCode } from '../lib/format'
 import { createOrder, type CreateOrderInput } from './api'
+import { CartSummary } from './CartSummary'
+import { cartLines, setQuantity, type Cart } from './cart'
+import { ProductPicker } from './ProductPicker'
 import { orderKeys } from './queries'
 
 /** Choice value meaning "register a new address" instead of using a saved one. */
 const NEW_ADDRESS = 'new'
-
-const hasAtMostTwoDecimals = (value: number) =>
-  Math.abs(value * 100 - Math.round(value * 100)) < 1e-6
-
-const itemSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1, 'Informe o item.')
-    .max(100, 'O nome do item deve ter no máximo 100 caracteres.'),
-  quantity: z
-    .number({ error: 'Informe a quantidade.' })
-    .int('Use um número inteiro.')
-    .min(1, 'A quantidade mínima é 1.')
-    .max(999, 'A quantidade máxima é 999.'),
-  unitPrice: z
-    .number({ error: 'Informe o preço.' })
-    .positive('O preço deve ser maior que zero.')
-    .refine(hasAtMostTwoDecimals, 'Use no máximo 2 casas decimais.'),
-})
 
 const baseSchema = z.object({
   customerName: z
@@ -58,7 +35,6 @@ const baseSchema = z.object({
     .trim()
     .min(1, 'Informe o nome do cliente.')
     .max(100, 'O nome do cliente deve ter no máximo 100 caracteres.'),
-  items: z.array(itemSchema).min(1, 'Adicione ao menos um item.'),
   addressChoice: z.string().min(1, 'Escolha um endereço.'),
   saveAsDefault: z.boolean(),
 })
@@ -75,8 +51,6 @@ const resolver: Resolver<NewOrderForm> = (values, context, options) =>
   values.addressChoice === NEW_ADDRESS
     ? newResolver(values, context, options)
     : savedResolver(values, context, options)
-
-const emptyItem = { name: '', quantity: 1, unitPrice: undefined as unknown as number }
 
 export function NewOrderPage() {
   const addresses = useAddresses()
@@ -103,6 +77,11 @@ function NewOrderFormView({ addresses }: { addresses: Address[] }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [apiError, setApiError] = useState<string | null>(null)
+  // The cart lives outside react-hook-form: it is driven by the catalog steppers, not by inputs.
+  const [cart, setCart] = useState<Cart>(() => new Map())
+  const [cartError, setCartError] = useState<string | null>(null)
+  const products = useProducts()
+  const lines = cartLines(cart, products.data ?? [])
   // One key per opening of the form: every retry of the submit sends the same one.
   const [idempotencyKey] = useState(() => crypto.randomUUID())
   const defaultAddress = addresses.find((a) => a.isDefault) ?? addresses[0]
@@ -111,7 +90,6 @@ function NewOrderFormView({ addresses }: { addresses: Address[] }) {
     resolver,
     defaultValues: {
       customerName: user?.name ?? '',
-      items: [emptyItem],
       addressChoice: defaultAddress ? String(defaultAddress.id) : NEW_ADDRESS,
       address: emptyAddress,
       saveAsDefault: false,
@@ -124,15 +102,13 @@ function NewOrderFormView({ addresses }: { addresses: Address[] }) {
     setError,
     formState: { errors },
   } = form
-  const { fields, append, remove } = useFieldArray({ control, name: 'items' })
-  const items = useWatch({ control, name: 'items' })
   const addressChoice = useWatch({ control, name: 'addressChoice' })
   const hasAddresses = addresses.length > 0
 
-  const total = items.reduce((sum, item) => {
-    const subtotal = Number(item.quantity) * Number(item.unitPrice)
-    return Number.isFinite(subtotal) ? sum + subtotal : sum
-  }, 0)
+  const changeQuantity = (productId: number, quantity: number) => {
+    setCart((current) => setQuantity(current, productId, quantity))
+    setCartError(null)
+  }
 
   const mutation = useMutation({
     mutationFn: (input: CreateOrderInput) => createOrder(input, idempotencyKey),
@@ -150,9 +126,13 @@ function NewOrderFormView({ addresses }: { addresses: Address[] }) {
 
   const onSubmit = handleSubmit(async (values) => {
     setApiError(null)
+    // Unreachable through the UI (the submit button is disabled, which also blocks submitting
+    // with Enter), but an order without items must never be sent.
+    if (lines.length === 0) return
     const base = {
       customerName: values.customerName,
-      items: values.items.map(({ name, quantity, unitPrice }) => ({ name, quantity, unitPrice })),
+      // Never the price: the server copies it from the catalog.
+      items: lines.map(({ product, quantity }) => ({ productId: product.id, quantity })),
     }
     const input: CreateOrderInput =
       values.addressChoice === NEW_ADDRESS
@@ -168,7 +148,15 @@ function NewOrderFormView({ addresses }: { addresses: Address[] }) {
       const { message, fieldErrors } = toApiError(error)
       setApiError(message)
       for (const [field, fieldMessage] of Object.entries(fieldErrors)) {
-        setError(toFormPath(field), { message: fieldMessage })
+        if (field.startsWith('items')) {
+          setCartError(fieldMessage)
+        } else {
+          setError(toFormPath(field), { message: fieldMessage })
+        }
+      }
+      // A product may have left the catalog meanwhile (422): show the current one.
+      if ('items' in fieldErrors) {
+        void queryClient.invalidateQueries({ queryKey: productKeys.all })
       }
     }
   })
@@ -178,133 +166,87 @@ function NewOrderFormView({ addresses }: { addresses: Address[] }) {
       <form onSubmit={onSubmit} noValidate className="form order-form">
         <FormAlert message={apiError} />
 
-        <section className="card">
-          <Field
-            label="Cliente"
-            registration={register('customerName')}
-            error={errors.customerName}
-          />
-        </section>
+        <div className="order-layout">
+          <div className="order-main">
+            <section className="card">
+              <Field
+                label="Cliente"
+                registration={register('customerName')}
+                error={errors.customerName}
+              />
+            </section>
 
-        <section className="card" aria-labelledby="order-items-title">
-          <h2 id="order-items-title">Itens</h2>
-          <ol className="item-rows">
-            {fields.map((field, index) => {
-              const item = items[index]
-              const subtotal = Number(item?.quantity) * Number(item?.unitPrice)
-              return (
-                <li key={field.id} className="item-row" aria-label={`Item ${index + 1}`}>
-                  <Field
-                    label="Item"
-                    registration={register(`items.${index}.name`)}
-                    error={errors.items?.[index]?.name}
+            <section className="card" aria-labelledby="order-menu-title">
+              <h2 id="order-menu-title">Cardápio</h2>
+              <QueryState
+                isPending={products.isPending}
+                error={products.error}
+                loadingText="Carregando o cardápio…"
+                onRetry={() => products.refetch()}
+              >
+                {products.data && (
+                  <ProductPicker
+                    products={products.data}
+                    cart={cart}
+                    onQuantityChange={changeQuantity}
                   />
-                  <Field
-                    label="Qtd."
-                    type="number"
-                    min={1}
-                    step={1}
-                    registration={register(`items.${index}.quantity`, { valueAsNumber: true })}
-                    error={errors.items?.[index]?.quantity}
-                  />
-                  <Field
-                    label="Preço (R$)"
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    inputMode="decimal"
-                    registration={register(`items.${index}.unitPrice`, { valueAsNumber: true })}
-                    error={errors.items?.[index]?.unitPrice}
-                  />
-                  <div className="item-row-end">
-                    <span className="item-subtotal">
-                      {formatBRL(Number.isFinite(subtotal) ? subtotal : 0)}
+                )}
+              </QueryState>
+            </section>
+
+            <section className="card" aria-labelledby="order-address-title">
+              <h2 id="order-address-title">Entrega</h2>
+              {hasAddresses ? (
+                <fieldset className="address-options">
+                  <legend>Endereço de entrega</legend>
+                  {addresses.map((a) => (
+                    <label key={a.id} className="address-option">
+                      <input type="radio" value={String(a.id)} {...register('addressChoice')} />
+                      <AddressSummary address={a} />
+                    </label>
+                  ))}
+                  <label className="address-option address-option-new">
+                    <input type="radio" value={NEW_ADDRESS} {...register('addressChoice')} />
+                    <span className="address-option-body">
+                      <span className="address-option-title">+ Cadastrar novo endereço</span>
+                      <span className="address-option-meta">
+                        Ele também fica salvo em Meus endereços.
+                      </span>
                     </span>
-                    <button
-                      type="button"
-                      className="button-ghost button-ghost-danger"
-                      aria-label={`Remover item ${index + 1}`}
-                      disabled={fields.length === 1}
-                      onClick={() => remove(index)}
-                    >
-                      Remover
-                    </button>
-                  </div>
-                </li>
-              )
-            })}
-          </ol>
-          {errors.items?.root?.message && (
-            <p className="field-error">{errors.items.root.message}</p>
-          )}
-          <div className="items-footer">
-            <button type="button" className="button-ghost" onClick={() => append(emptyItem)}>
-              Adicionar item
-            </button>
-            <p className="order-total" aria-live="polite">
-              Total: <strong data-testid="order-total">{formatBRL(total)}</strong>
-            </p>
-          </div>
-        </section>
-
-        <section className="card" aria-labelledby="order-address-title">
-          <h2 id="order-address-title">Entrega</h2>
-          {hasAddresses ? (
-            <fieldset className="address-options">
-              <legend>Endereço de entrega</legend>
-              {addresses.map((a) => (
-                <label key={a.id} className="address-option">
-                  <input type="radio" value={String(a.id)} {...register('addressChoice')} />
-                  <AddressSummary address={a} />
-                </label>
-              ))}
-              <label className="address-option address-option-new">
-                <input type="radio" value={NEW_ADDRESS} {...register('addressChoice')} />
-                <span className="address-option-body">
-                  <span className="address-option-title">+ Cadastrar novo endereço</span>
-                  <span className="address-option-meta">
-                    Ele também fica salvo em Meus endereços.
-                  </span>
-                </span>
-              </label>
-              {errors.addressChoice && (
-                <span className="field-error">{errors.addressChoice.message}</span>
+                  </label>
+                  {errors.addressChoice && (
+                    <span className="field-error">{errors.addressChoice.message}</span>
+                  )}
+                </fieldset>
+              ) : (
+                <p className="field-hint">
+                  Você ainda não tem endereço cadastrado. Informe onde quer receber o pedido: ele
+                  será salvo como seu endereço padrão.
+                </p>
               )}
-            </fieldset>
-          ) : (
-            <p className="field-hint">
-              Você ainda não tem endereço cadastrado. Informe onde quer receber o pedido: ele será
-              salvo como seu endereço padrão.
-            </p>
-          )}
 
-          {addressChoice === NEW_ADDRESS && (
-            <div className="new-address-panel" role="group" aria-labelledby="new-address-title">
-              <h3 id="new-address-title">Novo endereço</h3>
-              <AddressFields />
+              {addressChoice === NEW_ADDRESS && (
+                <div className="new-address-panel" role="group" aria-labelledby="new-address-title">
+                  <h3 id="new-address-title">Novo endereço</h3>
+                  <AddressFields />
+                  {hasAddresses && (
+                    <label className="checkbox">
+                      <input type="checkbox" {...register('saveAsDefault')} />
+                      Usar como meu endereço padrão
+                    </label>
+                  )}
+                </div>
+              )}
+
               {hasAddresses && (
-                <label className="checkbox">
-                  <input type="checkbox" {...register('saveAsDefault')} />
-                  Usar como meu endereço padrão
-                </label>
+                <p className="field-hint">
+                  Para editar ou excluir endereços, use <Link to="/addresses">Meus endereços</Link>.
+                </p>
               )}
-            </div>
-          )}
+            </section>
+          </div>
 
-          {hasAddresses && (
-            <p className="field-hint">
-              Para editar ou excluir endereços, use <Link to="/addresses">Meus endereços</Link>.
-            </p>
-          )}
-        </section>
-
-        <div className="form-actions">
-          <Link to="/orders" className="button-ghost button-link">
-            Cancelar
-          </Link>
-          <button type="submit" className="button-primary" disabled={mutation.isPending}>
-            {mutation.isPending ? 'Criando pedido…' : 'Criar pedido'}
-          </button>
+          <CartSummary lines={lines} error={cartError} isSubmitting={mutation.isPending} />
         </div>
       </form>
     </FormProvider>
@@ -330,7 +272,7 @@ function AddressSummary({ address }: { address: Address }) {
   )
 }
 
-/** Maps API field names (items[0].name, newAddress.street, addressId) to form paths. */
+/** Maps API field names (newAddress.street, addressId) to form paths. */
 function toFormPath(field: string): Path<NewOrderForm> {
   if (field === 'addressId') return 'addressChoice'
   return field

@@ -70,5 +70,14 @@ function withTotal(page: Page<OrderSummary>, content: OrderSummary[], total: num
 function toSummary(order: OrderDetail): OrderSummary {
   const { items, createdBy, ...summary } = order
   void createdBy
-  return { ...summary, itemCount: items.length }
+  return {
+    ...summary,
+    itemCount: items.length,
+    items: items.map(({ productId, name, imageUrl, quantity }) => ({
+      productId,
+      name,
+      imageUrl,
+      quantity,
+    })),
+  }
 }

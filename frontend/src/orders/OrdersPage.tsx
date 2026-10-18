@@ -1,13 +1,15 @@
 import { Link, useSearchParams } from 'react-router'
+import { ProductImage } from '../components/ProductImage'
 import { QueryState } from '../components/QueryState'
 import { StatusBadge } from '../components/StatusBadge'
 import { formatAddressSummary, formatBRL, formatDateTime } from '../lib/format'
 import { OrderActions } from './OrderActions'
 import { useOrders } from './queries'
 import { ORDER_STATUSES, STATUS_LABEL } from './status'
-import type { OrderStatus } from './types'
+import type { OrderItemPreview, OrderStatus } from './types'
 
 export const PAGE_SIZE = 10
+const MAX_THUMBNAILS = 4
 
 export function OrdersPage() {
   // Filter and page live in the URL, so they survive reloads and the back button.
@@ -86,6 +88,7 @@ export function OrdersPage() {
                     <StatusBadge status={order.status} />
                   </div>
                   <p className="muted">{formatAddressSummary(order.deliveryAddress)}</p>
+                  <ItemThumbnails items={order.items} />
                   <p className="order-card-meta">
                     <strong>{formatBRL(order.totalAmount)}</strong>
                     <span className="muted">
@@ -125,5 +128,25 @@ export function OrdersPage() {
         )}
       </QueryState>
     </section>
+  )
+}
+
+function ItemThumbnails({ items }: { items: OrderItemPreview[] }) {
+  const hidden = items.length - MAX_THUMBNAILS
+  return (
+    <ul className="item-thumbnails" aria-label="Itens">
+      {items.slice(0, MAX_THUMBNAILS).map((item) => (
+        <li key={item.productId} title={`${item.quantity}× ${item.name}`}>
+          <ProductImage
+            src={item.imageUrl}
+            alt={`${item.quantity}× ${item.name}`}
+            width={40}
+            height={40}
+            className="thumbnail"
+          />
+        </li>
+      ))}
+      {hidden > 0 && <li className="item-thumbnails-more">+{hidden}</li>}
+    </ul>
   )
 }

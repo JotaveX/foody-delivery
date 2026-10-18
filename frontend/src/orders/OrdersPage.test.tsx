@@ -50,8 +50,16 @@ describe('OrdersPage', () => {
     expect(
       within(order).getByText('Avenida Paulista, 1000 · Bela Vista, São Paulo/SP'),
     ).toBeInTheDocument()
-    expect(within(order).getByText(/R\$\s33,90/)).toBeInTheDocument()
+    expect(within(order).getByText(/R\$\s56,70/)).toBeInTheDocument()
     expect(within(order).getByText(/2 itens · 17\/10\/2026/)).toBeInTheDocument()
+    const thumbnails = within(within(order).getByRole('list', { name: 'Itens' })).getAllByRole(
+      'img',
+    )
+    expect(thumbnails.map((img) => img.getAttribute('alt'))).toEqual([
+      '2× X-Burguer',
+      '1× Refrigerante Lata',
+    ])
+    expect(thumbnails[0]).toHaveAttribute('loading', 'lazy')
     expect(within(order).getByText('Recebido')).toHaveClass('status-badge', 'status-recebido')
   })
 

@@ -23,10 +23,14 @@ describe('OrderDetailPage', () => {
     const rows = within(screen.getByRole('table')).getAllByRole('row')
     expect(rows.map((r) => r.textContent?.replace(/\s/g, ' '))).toEqual([
       'ItemQtd.UnitárioSubtotal',
-      'X-Burger2R$ 12,50R$ 25,00',
-      'Refrigerante1R$ 8,90R$ 8,90',
-      'TotalR$ 33,90',
+      'X-Burguer2R$ 24,90R$ 49,80',
+      'Refrigerante Lata1R$ 6,90R$ 6,90',
+      'TotalR$ 56,70',
     ])
+    expect(rows[1].querySelector('img')).toHaveAttribute(
+      'src',
+      expect.stringContaining('catalog/x-burguer.webp'),
+    )
     const address = screen.getByRole('region', { name: 'Endereço de entrega' })
     expect(address).toHaveTextContent('Avenida Paulista, 1000')
     expect(address).toHaveTextContent('CEP 01310-100')
