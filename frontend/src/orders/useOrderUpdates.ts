@@ -1,17 +1,13 @@
 import { Client, ReconnectionTimeMode } from '@stomp/stompjs'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
+import { wsUrl } from '../api/endpoints'
 import type { LiveStatus } from './liveStatus'
 import { applyOrderUpdate } from './orderCache'
 import { orderKeys } from './queries'
 import type { OrderDetail } from './types'
 
 export const ORDERS_TOPIC = '/topic/orders'
-
-function brokerUrl() {
-  const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws'
-  return `${scheme}://${window.location.host}/ws`
-}
 
 /**
  * Keeps the order cache in sync with the server over STOMP: every order change arrives on
@@ -28,7 +24,7 @@ export function useOrderUpdates(token: string | null): LiveStatus {
     if (!token) return
     let connectedBefore = false
     const client = new Client({
-      brokerURL: brokerUrl(),
+      brokerURL: wsUrl(),
       connectHeaders: { Authorization: `Bearer ${token}` },
       reconnectDelay: 1_000,
       maxReconnectDelay: 30_000,

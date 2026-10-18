@@ -1,12 +1,64 @@
 # Foody Delivery
 
-[![CI](https://github.com/JotaveX/foodyDelivery/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/JotaveX/foodyDelivery/actions/workflows/ci.yml)
+[![Deploy](https://github.com/JotaveX/foodyDelivery/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/JotaveX/foodyDelivery/actions/workflows/deploy.yml)
 
 Mini rastreador de pedidos de delivery.
 
 - `backend/` — Java 21, Spring Boot 3, Maven, SQLite
 - `frontend/` — React, Vite, TypeScript
 - `infra/` — deploy (docker compose, Caddy, Litestream, GitHub Actions)
+
+## Arquitetura de produção
+
+```mermaid
+flowchart LR
+    user([Navegador])
+
+    subgraph cf[Cloudflare]
+        pages["Pages · projeto foody<br/>foody.jotave.dev<br/>SPA estática"]
+    end
+
+    subgraph gcp[GCP]
+        subgraph vm["VM e2-small · api.foody.jotave.dev (DNS only)"]
+            caddy["Caddy<br/>HTTPS :443"]
+            backend["Backend<br/>Spring Boot"]
+            redis[("Redis<br/>rate limit, idempotência,<br/>cache, pub/sub")]
+            sqlite[("SQLite<br/>data/tracker.db")]
+            litestream["Litestream"]
+        end
+        gcs[("GCS<br/>réplica do SQLite")]
+        ar["Artifact Registry"]
+        sm["Secret Manager"]
+    end
+
+    gha["GitHub Actions"]
+
+    user -- "HTML, JS, CSS" --> pages
+    user -- "REST (CORS) e WebSocket /ws" --> caddy
+    caddy --> backend
+    backend --> redis
+    backend --> sqlite
+    litestream -- "lê o WAL" --> sqlite
+    litestream -- "replica" --> gcs
+    gha -- "wrangler pages deploy" --> pages
+    gha -- "imagem do backend" --> ar
+    gha -- "deploy.sh via túnel IAP" --> vm
+    vm -. "pull" .-> ar
+    vm -. "segredos" .-> sm
+```
+
+- **Frontend** no Cloudflare Pages (upload direto pelo GitHub Actions, sem integração Git). Em
+  produção a SPA chama `https://api.foody.jotave.dev` e `wss://api.foody.jotave.dev/ws`
+  (`VITE_API_URL` e `VITE_WS_URL`, definidas no build). Em dev, o proxy do Vite continua servindo
+  `/api` e `/ws`.
+- **API** numa VM do GCP com docker compose: Caddy (TLS automático) → backend, com Redis e o
+  Litestream replicando o SQLite para o GCS. O registro DNS da API fica **sem proxy** da
+  Cloudflare, para o Caddy emitir o próprio certificado e o rate limit ver o IP real do cliente.
+- **CORS**: o backend aceita só `https://foody.jotave.dev` em produção (`CORS_ALLOWED_ORIGINS`;
+  em dev, `http://localhost:5173`), a mesma lista usada no `Origin` do WebSocket.
+- **Deploy**: todo push na `main` roda os testes e depois publica backend e frontend
+  (`.github/workflows/deploy.yml`). PRs ganham um preview do front no Pages, com a URL comentada
+  no PR. Passo a passo da infraestrutura em [`infra/SETUP.md`](infra/SETUP.md).
 
 ## Rodando localmente
 
@@ -55,7 +107,7 @@ passarem em vez de derrubar a API.
 um. Por isso a API só o lê quando a conexão TCP vem de um proxy listado em
 `RATE_LIMIT_TRUSTED_PROXIES` (IPs ou CIDRs, separados por vírgula; vazio por padrão, e aí o header
 é ignorado). Em produção, aponte essa variável para o endereço do Caddy na rede do Docker (ex.: a
-sub-rede do compose, como `172.18.0.0/16`). Sem `trusted_proxies` próprio, o Caddy substitui o
+sub-rede do compose; o `docker-compose.prod.yml` fixa o Caddy em `172.30.0.10`). Sem `trusted_proxies` próprio, o Caddy substitui o
 `X-Forwarded-For` que vem da internet pelo IP real do cliente. A API percorre o header da direita
 para a esquerda, pulando os proxies confiáveis, e o primeiro endereço não confiável é o do cliente.
 Nunca inclua uma faixa que clientes da internet alcancem diretamente.
@@ -74,7 +126,8 @@ O front se conecta em `/ws` (STOMP sobre WebSocket puro) e assina `/topic/orders
   é publicado no canal Redis `order-events`. Toda instância assina esse canal e repassa a
   mensagem para os seus clientes pelo broker local. Assim, com várias instâncias, o cliente recebe
   a mudança mesmo conectado em outra instância que não a que a processou.
-- **Origens:** `WS_ALLOWED_ORIGINS` (padrões separados por vírgula; em dev, `http://localhost:*`).
+- **Origens:** as mesmas do CORS, `CORS_ALLOWED_ORIGINS` (origens exatas separadas por vírgula; em
+  dev, `http://localhost:5173`).
 
 ## Cache de pedidos (Spring Cache + Redis)
 

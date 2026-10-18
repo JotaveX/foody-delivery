@@ -1,6 +1,6 @@
 package dev.jotave.foody.realtime;
 
-import org.springframework.beans.factory.annotation.Value;
+import dev.jotave.foody.common.CorsProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -20,18 +20,22 @@ class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
   static final String TOPIC_PREFIX = "/topic";
 
   private final StompAuthInterceptor stompAuthInterceptor;
-  private final String[] allowedOrigins;
+  private final CorsProperties corsProperties;
 
-  WebSocketConfig(
-      StompAuthInterceptor stompAuthInterceptor,
-      @Value("${app.websocket.allowed-origins:}") String[] allowedOrigins) {
+  WebSocketConfig(StompAuthInterceptor stompAuthInterceptor, CorsProperties corsProperties) {
     this.stompAuthInterceptor = stompAuthInterceptor;
-    this.allowedOrigins = allowedOrigins;
+    this.corsProperties = corsProperties;
   }
 
+  /**
+   * Same origins as the HTTP API's CORS. The JWT goes in the CONNECT frame, not in a cookie, so
+   * this is defense in depth rather than the actual auth.
+   */
   @Override
   public void registerStompEndpoints(StompEndpointRegistry registry) {
-    registry.addEndpoint("/ws").setAllowedOriginPatterns(allowedOrigins);
+    registry
+        .addEndpoint("/ws")
+        .setAllowedOrigins(corsProperties.allowedOrigins().toArray(String[]::new));
   }
 
   @Override

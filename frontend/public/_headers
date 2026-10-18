@@ -1,0 +1,17 @@
+# Cloudflare Pages response headers (copied to dist/ by Vite). Rules that match the same path
+# are merged.
+#
+# No 404.html is shipped on purpose: without it Pages treats the project as an SPA and serves
+# index.html for every path that is not a static file, so React Router handles the route.
+
+/*
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://storage.googleapis.com; connect-src 'self' https://api.foody.jotave.dev wss://api.foody.jotave.dev https://viacep.com.br https://storage.googleapis.com; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+
+# Vite fingerprints everything under /assets: safe to cache forever.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

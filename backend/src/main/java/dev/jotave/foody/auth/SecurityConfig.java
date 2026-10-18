@@ -7,6 +7,7 @@ import dev.jotave.foody.ratelimit.RateLimitProperties;
 import dev.jotave.foody.ratelimit.RateLimiter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -31,6 +32,8 @@ public class SecurityConfig {
       throws Exception {
     var problemHandler = new ProblemDetailSecurityHandler(objectMapper);
     return http.csrf(AbstractHttpConfigurer::disable)
+        // Uses the CorsConfigurationSource bean (common.CorsConfig).
+        .cors(Customizer.withDefaults())
         .httpBasic(AbstractHttpConfigurer::disable)
         .formLogin(AbstractHttpConfigurer::disable)
         .logout(AbstractHttpConfigurer::disable)

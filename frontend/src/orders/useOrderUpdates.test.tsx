@@ -2,7 +2,7 @@ import { ReconnectionTimeMode } from '@stomp/stompjs'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { FakeStompClient } from '../test/fakeStomp'
 import { orderDetail, orderSummary } from '../test/orderFixtures'
 import {
@@ -61,6 +61,14 @@ describe('useOrderUpdates', () => {
 
     expect(hook.result.current).toBe('live')
     expect([...client().subscriptions.keys()]).toEqual([ORDERS_TOPIC])
+  })
+
+  it('connects to VITE_WS_URL when it is set at build time (production)', () => {
+    vi.stubEnv('VITE_WS_URL', 'wss://api.foody.jotave.dev/ws')
+
+    const { client } = setup()
+
+    expect(client().config.brokerURL).toBe('wss://api.foody.jotave.dev/ws')
   })
 
   it('does not connect without a token', () => {

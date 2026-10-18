@@ -1,7 +1,8 @@
 import axios from 'axios'
 import { readSession } from '../auth/session'
+import { apiUrl } from './endpoints'
 
-export const api = axios.create({ baseURL: '/api' })
+export const api = axios.create({ baseURL: apiUrl() })
 
 let onUnauthorized: (() => void) | null = null
 

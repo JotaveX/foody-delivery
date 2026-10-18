@@ -7,7 +7,7 @@ Desafio técnico de processo seletivo: um mini rastreador de pedidos de delivery
 ```
 backend/    Java 21, Spring Boot 3, Maven
 frontend/   React, Vite, TypeScript
-infra/      Deploy (docker compose, Caddy, Litestream, GitHub Actions)
+infra/      Deploy (docker compose, Caddy, Litestream; front no Cloudflare Pages)
 ```
 
 ## Requisitos obrigatórios do desafio
@@ -32,8 +32,8 @@ infra/      Deploy (docker compose, Caddy, Litestream, GitHub Actions)
   - Google Cloud Storage → storage local de arquivos.
   
   O projeto precisa subir **sem nenhuma credencial real**.
-- **Produção**: VM na Compute Engine rodando docker compose; Caddy como reverse proxy com HTTPS em `foody.jotave.dev`; Litestream replicando o SQLite para o GCS; deploy via GitHub Actions.
-- **Roteamento**: em todos os ambientes o front chama a API em `/api` e o WebSocket em `/ws` — proxy do Vite em dev, Caddy em prod. **Sem CORS em produção** (mesma origem).
+- **Produção**: frontend no **Cloudflare Pages** (`foody.jotave.dev`, upload direto via Wrangler no GitHub Actions); API numa VM na Compute Engine rodando docker compose, com Caddy (HTTPS) em `api.foody.jotave.dev` (registro DNS only, sem proxy da Cloudflare); Litestream replicando o SQLite para o GCS. Passo a passo em `infra/SETUP.md`.
+- **Roteamento**: em dev o front chama `/api` e `/ws` pelo proxy do Vite (mesma origem). Em produção usa `VITE_API_URL`/`VITE_WS_URL` (definidas no build) e fala com `api.foody.jotave.dev` cross-origin; o CORS e o `Origin` aceito no `/ws` vêm de `app.cors.allowed-origins` (`CORS_ALLOWED_ORIGINS`).
 
 ## Convenções
 
@@ -103,7 +103,7 @@ docker compose down
 
 ### Infra (`infra/`)
 
-Produção é implantada pelo workflow do GitHub Actions (docker compose na VM, Caddy + Litestream).
+Produção é implantada pelo `.github/workflows/deploy.yml` (backend: docker compose na VM com Caddy + Litestream, via `infra/deploy.sh`; frontend: `wrangler pages deploy`).
 
 > Os comandos acima refletem a estrutura planejada; ajuste esta seção se nomes de arquivos ou scripts mudarem durante a implementação.
 

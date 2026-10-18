@@ -1,0 +1,118 @@
+name: Deploy
+
+# Production deploy on every push to main, after the full CI suite passes:
+# - backend: image to Artifact Registry, then infra/deploy.sh on the VM through an IAP tunnel;
+# - frontend: static build published to Cloudflare Pages.
+#
+# Repository configuration (Settings > Secrets and variables > Actions), see infra/SETUP.md:
+#   secrets: CLOUDFLARE_API_TOKEN
+#   vars:    CLOUDFLARE_ACCOUNT_ID, GCP_PROJECT_ID, GCP_REGION, GCP_ZONE,
+#            GCP_WORKLOAD_IDENTITY_PROVIDER, GCP_DEPLOY_SERVICE_ACCOUNT
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Never two production deploys at once, and never cancel one halfway.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+    # A called workflow cannot ask for more than the caller grants, and ci.yml declares
+    # pull-requests: write for its PR-only preview job (skipped here).
+    permissions:
+      contents: read
+      pull-requests: write
+    secrets: inherit
+
+  deploy-backend:
+    name: Deploy backend (GCP VM)
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Workload Identity Federation: no service account key
+    env:
+      IMAGE_TAG: ${{ github.sha }}
+      REGISTRY: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/foody
+      VM: foody-vm
+      ZONE: ${{ vars.GCP_ZONE }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - name: Authenticate Docker to Artifact Registry
+        run: gcloud auth configure-docker "${{ vars.GCP_REGION }}-docker.pkg.dev" --quiet
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v7
+        with:
+          context: backend
+          push: true
+          tags: ${{ env.REGISTRY }}/backend:${{ env.IMAGE_TAG }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
+
+      - name: Copy infra files to the VM
+        run: >-
+          gcloud compute scp --tunnel-through-iap --zone="$ZONE" --quiet
+          infra/docker-compose.prod.yml infra/Caddyfile infra/litestream.yml infra/prod.env infra/deploy.sh
+          "$VM":/tmp/
+
+      - name: Install infra files and deploy
+        run: >-
+          gcloud compute ssh "$VM" --tunnel-through-iap --zone="$ZONE" --quiet --command="
+          sudo install -m 644 -t /opt/foody /tmp/docker-compose.prod.yml /tmp/Caddyfile /tmp/litestream.yml /tmp/prod.env &&
+          sudo install -m 755 -t /opt/foody /tmp/deploy.sh &&
+          rm -f /tmp/docker-compose.prod.yml /tmp/Caddyfile /tmp/litestream.yml /tmp/prod.env /tmp/deploy.sh &&
+          sudo /opt/foody/deploy.sh $IMAGE_TAG"
+
+  deploy-frontend:
+    name: Deploy frontend (Cloudflare Pages)
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      VITE_API_URL: https://api.foody.jotave.dev
+      VITE_WS_URL: wss://api.foody.jotave.dev/ws
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Publish to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: frontend
+          command: pages deploy dist --project-name=foody --branch=main
