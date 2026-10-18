@@ -1,13 +1,11 @@
-import { act, screen, within } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { FakeStompClient } from '../test/fakeStomp'
 import { storeSession, user as fixtureUser } from '../test/fixtures'
-import { orderDetail, orderSummary, page } from '../test/orderFixtures'
+import { orderSummary, page } from '../test/orderFixtures'
 import { renderApp } from '../test/renderApp'
 import { server } from '../test/server'
 import type { OrderSummary } from './types'
-import { ORDERS_TOPIC } from './useOrderUpdates'
 
 const card = (id: number) => screen.getByRole('listitem', { name: `Pedido #${id}` })
 const buttonNames = (id: number) =>
