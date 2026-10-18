@@ -77,24 +77,24 @@ cd frontend && npm install && npm run dev
 
 ### Testes E2E (Playwright)
 
-Ficam em `e2e/` e rodam contra a stack de dev completa (back, front, Redis e Mailpit), definida
-pelo `docker-compose.e2e.yml` sobre o `docker-compose.yml`:
+Ficam em `e2e/` e rodam contra a stack de dev rodando (back, front, Redis e Mailpit). A suíte
+cadastra e faz login muitas vezes do mesmo IP, então o backend precisa subir sem rate limit (um
+`globalSetup` confere isso e para a suíte com uma mensagem clara se ele estiver ligado):
 
 ```bash
-cd e2e && npm install && npx playwright install chromium
-npm run stack:up        # build do backend + Vite em container; espera os healthchecks
-npm test                # relatório em e2e/playwright-report (npm run report)
-npm run stack:down
+docker compose up -d                                         # Redis e Mailpit
+cd backend && RATE_LIMIT_ENABLED=false ./mvnw spring-boot:run
+cd frontend && npm run dev
+cd e2e && npm install && npx playwright install chromium && npm test   # relatório: npm run report
 ```
 
 Cenários: cadastro → primeiro endereço → login → pedido com dois itens; status em tempo real entre
 dois navegadores (sem recarregar nem refazer a busca); recuperação de senha pelo link lido na API
 do Mailpit; e endereço novo marcado como padrão no pedido. O ViaCEP é simulado no navegador, então
-a suíte não depende da internet.
+a suíte não depende da internet. `E2E_FRONT_PORT` muda a porta do front (padrão 5173).
 
-O front sobe na porta 5173. Para rodar junto com o `npm run dev`, use outra:
-`E2E_FRONT_PORT=5174 npm run stack:up` e `E2E_FRONT_PORT=5174 npm test`. No CI, o job `e2e` roda
-a suíte e, se falhar, publica relatório, traces e logs da stack como artifact.
+No CI, o job `e2e` sobe a mesma stack no runner, roda a suíte e, se falhar, publica relatório,
+traces e logs do back e do front como artifact.
 
 ## Idempotência e rate limit
 
