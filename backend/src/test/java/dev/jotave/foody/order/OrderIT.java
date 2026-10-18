@@ -386,8 +386,8 @@ class OrderIT extends IntegrationTest {
     assertThat(content).extracting(o -> id(o)).containsExactly(third, second);
     assertThat(content.getFirst()).containsEntry("itemCount", 2).containsEntry("totalAmount", 56.7);
     assertThat(list(content.getFirst().get("items")))
-        .extracting(i -> i.get("name"), i -> i.get("quantity"))
-        .containsExactly(tuple("X-Burguer", 2), tuple("Refrigerante Lata", 1));
+        .extracting(i -> i.get("name"), i -> i.get("quantity"), i -> i.get("subtotal"))
+        .containsExactly(tuple("X-Burguer", 2, 49.8), tuple("Refrigerante Lata", 1, 6.9));
     assertThat(list(content.getFirst().get("items")))
         .allSatisfy(
             i ->

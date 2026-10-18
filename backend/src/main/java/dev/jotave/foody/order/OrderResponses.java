@@ -40,8 +40,9 @@ public final class OrderResponses {
       BigDecimal unitPrice,
       BigDecimal subtotal) {}
 
-  /** Enough of an item for the order list (thumbnails). */
-  public record ItemPreview(Long productId, String name, String imageUrl, int quantity) {}
+  /** Enough of an item for the order list: one ticket line ({@code 2x X-Burguer ... 49,80}). */
+  public record ItemPreview(
+      Long productId, String name, String imageUrl, int quantity, BigDecimal subtotal) {}
 
   /** The exact address the order was sent to, even if since edited or deleted in the profile. */
   public record DeliveryAddress(

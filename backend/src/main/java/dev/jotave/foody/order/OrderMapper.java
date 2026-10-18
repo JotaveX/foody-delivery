@@ -74,7 +74,8 @@ class OrderMapper {
         product.getId(),
         product.getName(),
         catalog.imageUrl(product.getImageKey()),
-        item.getQuantity());
+        item.getQuantity(),
+        item.subtotal());
   }
 
   private static DeliveryAddress toDeliveryAddress(Address address) {
