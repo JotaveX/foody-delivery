@@ -71,6 +71,10 @@ app:
     type: ${STORAGE_TYPE:gcs}
     bucket: ${GCS_BUCKET}
     local-path: ${STORAGE_LOCAL_PATH:./data/uploads}
+  catalog:
+    # Public, credential-free URL of the catalog images (the images bucket, also in dev); a
+    # product's imageUrl is this base + "/" + its image_key.
+    image-base-url: ${CATALOG_IMAGE_BASE_URL:https://storage.googleapis.com/bright-torus-356608-foody-images}
   cors:
     # Exact origins (comma-separated) allowed to call the API cross-origin and to open /ws.
     # Production: the SPA on Cloudflare Pages.

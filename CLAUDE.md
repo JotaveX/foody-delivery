@@ -29,7 +29,7 @@ infra/      Deploy (docker compose, Caddy, Litestream; front no Cloudflare Pages
 - **Toda dependência externa tem substituto local** no docker-compose de dev:
   - Redis → container Redis;
   - e-mail (Resend em produção) → Mailpit via SMTP;
-  - Google Cloud Storage → storage local de arquivos.
+  - imagens do catálogo → lidas da URL pública do bucket, sem credencial (não há upload).
   
   O projeto precisa subir **sem nenhuma credencial real**.
 - **Produção**: frontend no **Cloudflare Pages** (`foody.jotave.dev`, upload direto via Wrangler no GitHub Actions); API numa VM e2-micro na Compute Engine (Free Tier, `us-east1`) rodando docker compose, com Caddy (HTTPS) em `api.foody.jotave.dev` (registro DNS only, sem proxy da Cloudflare); Litestream replicando o SQLite para o GCS. Passo a passo em `infra/SETUP.md`.
@@ -64,11 +64,19 @@ infra/      Deploy (docker compose, Caddy, Litestream; front no Cloudflare Pages
 
 ### Pedidos
 
-- Tabela `orders` (não `order`, palavra reservada), com `order_items` e `order_status_history`. Sem `ON DELETE CASCADE`: `orders.address_id` aponta para o endereço imutável exato da entrega, mesmo após edição/exclusão.
+- Tabela `orders` (não `order`, palavra reservada), com `order_items` (`product_id`, `quantity`, `unit_price_cents`) e `order_status_history`. Sem `ON DELETE CASCADE`: `orders.address_id` aponta para o endereço imutável exato da entrega, mesmo após edição/exclusão.
 - **Dinheiro em centavos (`BIGINT`)**: o SQLite não tem decimal exato (`DECIMAL` vira REAL). No domínio e na API é `BigDecimal` com 2 casas; o `MoneyCentsConverter` converte e recusa frações de centavo.
 - **Máquina de estados** em `OrderStatus.canTransitionTo`: `RECEBIDO → EM_PREPARO | CANCELADO`; `EM_PREPARO → SAIU_PARA_ENTREGA | CANCELADO`; `SAIU_PARA_ENTREGA → ENTREGUE`; `ENTREGUE` e `CANCELADO` são terminais.
 - Status só muda por `Order.changeStatus(next, user)` (sem setter), que lança `InvalidStatusTransitionException` (409) e registra o histórico. A criação registra `null → RECEBIDO`. `@Version` faz lock otimista.
 - `totalAmount` é calculado dos itens na criação e persistido; itens não mudam depois.
+- Itens vêm do catálogo: o `POST /orders` recebe só `{ productId, quantity }`, soma `productId` repetido, recusa produto inexistente/inativo com 422 e copia o preço atual do produto para `unit_price_cents` (snapshot). Nunca aceitar preço do cliente.
+
+### Catálogo
+
+- Tabela `products`, **dado de referência semeado por migration** (vale para todos os ambientes). Não há rotas de escrita nem upload; mudar o cardápio é uma nova migration.
+- Categorias no enum `catalog/ProductCategory`, espelhado no `CHECK` da tabela.
+- O banco guarda `image_key`; a API monta `imageUrl` com `app.catalog.image-base-url` (`CATALOG_IMAGE_BASE_URL`, default: bucket público de imagens). As imagens são geradas por `scripts/catalog/fetch-images.mjs` (só local, no `.gitignore`).
+- `GET /products` é cacheado no Redis (`cache:catalog:*`, TTL 1h, limpo no startup pelo `CatalogCacheEvictor`) e responde com `Cache-Control: public, max-age=300`. A validação do pedido lê o banco, nunca o cache.
 - No SQLite, só a PK precisa ser declarada exatamente `INTEGER PRIMARY KEY` (as entidades mapeiam com `@JdbcTypeCode(SqlTypes.INTEGER)`); demais colunas inteiras podem ser `BIGINT`.
 
 ## Comandos

@@ -1,5 +1,7 @@
 package dev.jotave.foody.order;
 
+import dev.jotave.foody.catalog.Product;
+import dev.jotave.foody.common.MoneyCentsConverter;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
@@ -11,13 +13,15 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
+import java.util.Objects;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "order_items")
 public class OrderItem {
+
+  public static final int MAX_QUANTITY = 999;
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -28,42 +32,33 @@ public class OrderItem {
   @JoinColumn(name = "order_id", nullable = false)
   private Order order;
 
-  @Column(nullable = false, length = 100)
-  private String name;
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "product_id", nullable = false, updatable = false)
+  private Product product;
 
   @Column(nullable = false)
   private int quantity;
 
+  /** Snapshot of the product price when the order was created; never follows later changes. */
   @Convert(converter = MoneyCentsConverter.class)
-  @Column(name = "unit_price_cents", nullable = false)
+  @Column(name = "unit_price_cents", nullable = false, updatable = false)
   private BigDecimal unitPrice;
-
-  @Column(name = "image_url", length = 500)
-  private String imageUrl;
 
   protected OrderItem() {}
 
   /**
-   * @throws IllegalArgumentException if the name is blank, the quantity is not positive or the unit
-   *     price is not positive or has more than 2 decimal places
+   * Takes the unit price from the product as it is now.
+   *
+   * @throws IllegalArgumentException if the quantity is not between 1 and {@link #MAX_QUANTITY}
    */
-  public OrderItem(String name, int quantity, BigDecimal unitPrice, String imageUrl) {
-    if (name == null || name.isBlank()) {
-      throw new IllegalArgumentException("Item name must not be blank");
+  public OrderItem(Product product, int quantity) {
+    Objects.requireNonNull(product, "product");
+    if (quantity <= 0 || quantity > MAX_QUANTITY) {
+      throw new IllegalArgumentException("Item quantity out of range: " + quantity);
     }
-    if (quantity <= 0) {
-      throw new IllegalArgumentException("Item quantity must be positive: " + quantity);
-    }
-    if (unitPrice == null || unitPrice.signum() <= 0) {
-      throw new IllegalArgumentException("Item unit price must be positive: " + unitPrice);
-    }
-    if (unitPrice.stripTrailingZeros().scale() > 2) {
-      throw new IllegalArgumentException("Item unit price has fractions of a cent: " + unitPrice);
-    }
-    this.name = name.trim();
+    this.product = product;
     this.quantity = quantity;
-    this.unitPrice = unitPrice.setScale(2, RoundingMode.UNNECESSARY);
-    this.imageUrl = imageUrl;
+    this.unitPrice = product.getPrice();
   }
 
   void attachTo(Order order) {
@@ -82,8 +77,8 @@ public class OrderItem {
     return order;
   }
 
-  public String getName() {
-    return name;
+  public Product getProduct() {
+    return product;
   }
 
   public int getQuantity() {
@@ -92,9 +87,5 @@ public class OrderItem {
 
   public BigDecimal getUnitPrice() {
     return unitPrice;
-  }
-
-  public String getImageUrl() {
-    return imageUrl;
   }
 }

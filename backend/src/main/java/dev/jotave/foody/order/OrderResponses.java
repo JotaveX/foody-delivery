@@ -15,6 +15,7 @@ public final class OrderResponses {
       OrderStatus status,
       BigDecimal totalAmount,
       int itemCount,
+      List<ItemPreview> items,
       DeliveryAddress deliveryAddress,
       Instant createdAt,
       Instant updatedAt) {}
@@ -30,13 +31,17 @@ public final class OrderResponses {
       Instant createdAt,
       Instant updatedAt) {}
 
+  /** {@code unitPrice} is the price when the order was created, not the current catalog price. */
   public record Item(
-      Long id,
+      Long productId,
       String name,
+      String imageUrl,
       int quantity,
       BigDecimal unitPrice,
-      BigDecimal subtotal,
-      String imageUrl) {}
+      BigDecimal subtotal) {}
+
+  /** Enough of an item for the order list (thumbnails). */
+  public record ItemPreview(Long productId, String name, String imageUrl, int quantity) {}
 
   /** The exact address the order was sent to, even if since edited or deleted in the profile. */
   public record DeliveryAddress(

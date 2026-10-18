@@ -1,4 +1,4 @@
-package dev.jotave.foody.order;
+package dev.jotave.foody.common;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

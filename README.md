@@ -171,3 +171,29 @@ por necessidade de desempenho.
   anterior logo depois da remoção (corrida clássica do cache-aside). O TTL limita essa janela a
   10 minutos. O tempo real (WebSocket) não depende do cache, porque publica o snapshot do próprio
   evento.
+
+## Catálogo de produtos
+
+Os itens do pedido vêm de um **catálogo fixo** de 20 produtos (`GET /products`, com filtro
+opcional `?category=`). Não existe rota para criar, editar ou excluir produtos, nem upload de
+imagem.
+
+- **Dado de referência, semeado por migration:** o catálogo entra pelo Flyway
+  (`V4__product_catalog.sql`), igual em todos os ambientes. Não é seed de dev: o sistema não
+  funciona sem ele, e mudar o cardápio é uma nova migration, versionada e revisada como qualquer
+  mudança de schema.
+- **Snapshot de preço:** `order_items` guarda `product_id`, `quantity` e `unit_price_cents`. O preço
+  unitário é copiado do produto na criação do pedido, então mudar o preço depois não altera
+  pedidos antigos. O `POST /orders` recebe só `[{ productId, quantity }]`: o preço nunca vem do
+  cliente (campos extras são ignorados), `productId` repetido é somado num item só e produto
+  inexistente ou inativo retorna 422.
+- **Key da imagem, não URL:** o banco guarda `image_key` (ex.: `catalog/pizza-calabresa.webp`) e a
+  API monta `imageUrl` com `app.catalog.image-base-url` (`CATALOG_IMAGE_BASE_URL`). Trocar de
+  bucket ou colocar um CDN na frente é só configuração, sem migração de dados. As imagens ficam
+  num bucket público do GCS, lidas sem credencial também em dev.
+- **Cache do catálogo:** aqui o cache é o caso de uso natural: leitura frequente (toda tela de
+  novo pedido) e dado praticamente imutável. A lista fica no Redis (`@Cacheable`, chave
+  `cache:catalog:{categoria|all}`, TTL de 1h) e a resposta sai com `Cache-Control: public,
+  max-age=300`, para o navegador nem chegar à API. Como o catálogo só muda por migration, que roda
+  na subida da aplicação, o cache é limpo no startup (`CatalogCacheEvictor`). A validação do
+  pedido não usa o cache: preço e disponibilidade vêm sempre do banco.

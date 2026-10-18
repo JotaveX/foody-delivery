@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import dev.jotave.foody.support.IntegrationTest;
 import dev.jotave.foody.support.TestAccounts;
 import dev.jotave.foody.support.TestAccounts.Account;
+import dev.jotave.foody.support.TestProducts;
 import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
@@ -175,7 +176,12 @@ class OrderUpdatesWebSocketIT extends IntegrationTest {
                     "addressId",
                     addressId,
                     "items",
-                    List.of(Map.of("name", "Pizza", "quantity", 1, "unitPrice", 45.0))),
+                    List.of(
+                        Map.of(
+                            "productId",
+                            TestProducts.idOf(jdbc, "pizza-calabresa"),
+                            "quantity",
+                            1))),
                 account.headers()),
             JSON);
     assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);

@@ -6,8 +6,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import dev.jotave.foody.address.AddressRepository;
 import dev.jotave.foody.address.AddressRequest;
 import dev.jotave.foody.address.AddressService;
+import dev.jotave.foody.catalog.Product;
+import dev.jotave.foody.catalog.ProductRepository;
 import dev.jotave.foody.support.IntegrationTest;
 import dev.jotave.foody.support.TestAccounts;
+import dev.jotave.foody.support.TestProducts;
 import dev.jotave.foody.user.User;
 import dev.jotave.foody.user.UserRepository;
 import java.math.BigDecimal;
@@ -29,6 +32,7 @@ class OrderPersistenceIT extends IntegrationTest {
   @Autowired private UserRepository users;
   @Autowired private AddressRepository addresses;
   @Autowired private AddressService addressService;
+  @Autowired private ProductRepository products;
 
   private long userId;
   private long addressId;
@@ -48,25 +52,25 @@ class OrderPersistenceIT extends IntegrationTest {
     assertThat(
             jdbc.queryForObject(
                 "SELECT total_amount_cents FROM orders WHERE id = ?", Long.class, orderId))
-        .isEqualTo(3390L);
+        .isEqualTo(5670L);
     assertThat(
             jdbc.queryForList(
                 "SELECT unit_price_cents FROM order_items WHERE order_id = ? ORDER BY id",
                 Long.class,
                 orderId))
-        .containsExactly(1250L, 890L);
+        .containsExactly(2490L, 690L);
 
     tx.executeWithoutResult(
         status -> {
           Order order = orders.findById(orderId).orElseThrow();
-          assertThat(order.getTotalAmount()).isEqualTo(new BigDecimal("33.90"));
+          assertThat(order.getTotalAmount()).isEqualTo(new BigDecimal("56.70"));
           assertThat(order.getStatus()).isEqualTo(OrderStatus.RECEBIDO);
           assertThat(order.getDeliveryAddress().getId()).isEqualTo(addressId);
           assertThat(order.getItems())
-              .extracting(OrderItem::getName, OrderItem::getUnitPrice)
+              .extracting(item -> item.getProduct().getSlug(), OrderItem::getUnitPrice)
               .containsExactly(
-                  org.assertj.core.groups.Tuple.tuple("X-Burger", new BigDecimal("12.50")),
-                  org.assertj.core.groups.Tuple.tuple("Refrigerante", new BigDecimal("8.90")));
+                  org.assertj.core.groups.Tuple.tuple("x-burguer", new BigDecimal("24.90")),
+                  org.assertj.core.groups.Tuple.tuple("refrigerante-lata", new BigDecimal("6.90")));
           assertThat(order.getStatusHistory())
               .singleElement()
               .satisfies(
@@ -148,11 +152,15 @@ class OrderPersistenceIT extends IntegrationTest {
                   "Maria Silva",
                   addresses.findById(addressId).orElseThrow(),
                   List.of(
-                      new OrderItem("X-Burger", 2, new BigDecimal("12.50"), null),
-                      new OrderItem("Refrigerante", 1, new BigDecimal("8.90"), null)),
+                      new OrderItem(product("x-burguer"), 2),
+                      new OrderItem(product("refrigerante-lata"), 1)),
                   user);
           return orders.save(order).getId();
         });
+  }
+
+  private Product product(String slug) {
+    return products.findById(TestProducts.idOf(jdbc, slug)).orElseThrow();
   }
 
   private int versionOf(long orderId) {

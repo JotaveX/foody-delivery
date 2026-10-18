@@ -3,54 +3,53 @@ package dev.jotave.foody.order;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import dev.jotave.foody.catalog.Product;
+import dev.jotave.foody.catalog.ProductCategory;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.test.util.ReflectionTestUtils;
 
 class OrderItemTest {
 
-  @ParameterizedTest
-  @ValueSource(ints = {0, -1})
-  void rejectsNonPositiveQuantity(int quantity) {
-    assertThatThrownBy(() -> new OrderItem("Pizza", quantity, new BigDecimal("10.00"), null))
-        .isInstanceOf(IllegalArgumentException.class);
-  }
+  private final Product pizza =
+      new Product(
+          "pizza-calabresa",
+          "Pizza de Calabresa",
+          "Grande",
+          ProductCategory.PIZZA,
+          new BigDecimal("54.90"),
+          "catalog/pizza-calabresa.webp");
 
   @ParameterizedTest
-  @ValueSource(strings = {"0", "0.00", "-0.01", "1.999"})
-  void rejectsInvalidUnitPrice(String price) {
-    assertThatThrownBy(() -> new OrderItem("Pizza", 1, new BigDecimal(price), null))
-        .isInstanceOf(IllegalArgumentException.class);
-  }
-
-  @ParameterizedTest
-  @NullAndEmptySource
-  @ValueSource(strings = {"   "})
-  void rejectsBlankName(String name) {
-    assertThatThrownBy(() -> new OrderItem(name, 1, new BigDecimal("10.00"), null))
+  @ValueSource(ints = {0, -1, OrderItem.MAX_QUANTITY + 1})
+  void rejectsQuantityOutOfRange(int quantity) {
+    assertThatThrownBy(() -> new OrderItem(pizza, quantity))
         .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
-  void rejectsNullUnitPrice() {
-    assertThatThrownBy(() -> new OrderItem("Pizza", 1, null, null))
-        .isInstanceOf(IllegalArgumentException.class);
+  void rejectsMissingProduct() {
+    assertThatThrownBy(() -> new OrderItem(null, 1)).isInstanceOf(NullPointerException.class);
   }
 
   @Test
-  void normalizesPriceToCentsAndComputesSubtotal() {
-    OrderItem item = new OrderItem(" Pizza ", 3, new BigDecimal("12.5"), null);
+  void copiesTheProductPriceAndComputesSubtotal() {
+    OrderItem item = new OrderItem(pizza, 3);
 
-    assertThat(item.getName()).isEqualTo("Pizza");
-    assertThat(item.getUnitPrice()).isEqualTo(new BigDecimal("12.50"));
-    assertThat(item.subtotal()).isEqualTo(new BigDecimal("37.50"));
+    assertThat(item.getProduct()).isSameAs(pizza);
+    assertThat(item.getUnitPrice()).isEqualTo(new BigDecimal("54.90"));
+    assertThat(item.subtotal()).isEqualTo(new BigDecimal("164.70"));
   }
 
   @Test
-  void acceptsTrailingZerosBeyondTwoDecimals() {
-    assertThat(new OrderItem("Pizza", 1, new BigDecimal("9.900"), null).getUnitPrice())
-        .isEqualTo(new BigDecimal("9.90"));
+  void laterPriceChangesDoNotAffectTheItem() {
+    OrderItem item = new OrderItem(pizza, 2);
+
+    ReflectionTestUtils.setField(pizza, "price", new BigDecimal("99.90"));
+
+    assertThat(item.getUnitPrice()).isEqualTo(new BigDecimal("54.90"));
+    assertThat(item.subtotal()).isEqualTo(new BigDecimal("109.80"));
   }
 }

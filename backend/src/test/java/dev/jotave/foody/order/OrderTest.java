@@ -10,17 +10,22 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
 import dev.jotave.foody.address.Address;
+import dev.jotave.foody.catalog.Product;
+import dev.jotave.foody.catalog.ProductCategory;
 import dev.jotave.foody.user.User;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.springframework.test.util.ReflectionTestUtils;
 
 class OrderTest {
 
   private final User customer = new User("Maria", "maria@example.com", "hash");
   private final User operator = new User("Operador", "op@example.com", "hash");
+  private final Product burger = product("x-burguer", "12.50");
+  private final Product soda = product("refrigerante-lata", "8.90");
   private final Address address =
       new Address(
           customer, "Casa", "Rua A", "1", null, "Centro", "Campinas", "SP", "13010000", true);
@@ -53,6 +58,18 @@ class OrderTest {
     assertThat(order.getTotalAmount()).isEqualByComparingTo("33.90");
     assertThat(order.getTotalAmount().scale()).isEqualTo(2);
     assertThat(order.getItems()).allSatisfy(item -> assertThat(item.getOrder()).isSameAs(order));
+  }
+
+  @Test
+  void totalUsesThePriceSnapshotTakenAtCreation() {
+    Order order = newOrder();
+
+    ReflectionTestUtils.setField(burger, "price", new BigDecimal("30.00"));
+
+    assertThat(order.getTotalAmount()).isEqualByComparingTo("33.90");
+    assertThat(order.getItems())
+        .extracting(OrderItem::getUnitPrice)
+        .containsExactly(new BigDecimal("12.50"), new BigDecimal("8.90"));
   }
 
   @ParameterizedTest(name = "{0} -> {1}")
@@ -167,9 +184,17 @@ class OrderTest {
     return Order.create(" Maria Silva ", address, items(), customer);
   }
 
-  private static List<OrderItem> items() {
-    return List.of(
-        new OrderItem("X-Burger", 2, new BigDecimal("12.50"), null),
-        new OrderItem("Refrigerante", 1, new BigDecimal("8.9"), "https://example.com/r.png"));
+  private List<OrderItem> items() {
+    return List.of(new OrderItem(burger, 2), new OrderItem(soda, 1));
+  }
+
+  private static Product product(String slug, String price) {
+    return new Product(
+        slug,
+        slug,
+        "",
+        ProductCategory.LANCHES,
+        new BigDecimal(price),
+        "catalog/" + slug + ".webp");
   }
 }

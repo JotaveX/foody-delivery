@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import dev.jotave.foody.support.IntegrationTest;
 import dev.jotave.foody.support.TestAccounts;
 import dev.jotave.foody.support.TestAccounts.Account;
+import dev.jotave.foody.support.TestProducts;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,6 +25,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 class OrderCacheIT extends IntegrationTest {
@@ -33,6 +35,7 @@ class OrderCacheIT extends IntegrationTest {
 
   @Autowired private TestRestTemplate http;
   @Autowired private StringRedisTemplate redis;
+  @Autowired private JdbcTemplate jdbc;
   @MockitoSpyBean private OrderRepository orders;
   @MockitoSpyBean private RedisConnectionFactory redisConnectionFactory;
 
@@ -49,7 +52,8 @@ class OrderCacheIT extends IntegrationTest {
         Map.of(
             "customerName", "Maria Silva",
             "addressId", ((Map<?, ?>) addresses.getFirst()).get("id"),
-            "items", List.of(Map.of("name", "X-Burger", "quantity", 2, "unitPrice", 12.5)));
+            "items",
+                List.of(Map.of("productId", TestProducts.idOf(jdbc, "x-burguer"), "quantity", 2)));
     orderId = ((Number) exchange(HttpMethod.POST, "/orders", body).getBody().get("id")).longValue();
     clearInvocations(orders);
   }
@@ -60,7 +64,7 @@ class OrderCacheIT extends IntegrationTest {
     ResponseEntity<Map<String, Object>> second = get();
 
     assertThat(second.getStatusCode()).isEqualTo(HttpStatus.OK);
-    assertThat(second.getBody()).isEqualTo(first.getBody()).containsEntry("totalAmount", 25.0);
+    assertThat(second.getBody()).isEqualTo(first.getBody()).containsEntry("totalAmount", 49.8);
     verify(orders, times(1)).findDetailed(orderId);
     assertThat(redis.hasKey(cacheKey())).isTrue();
     assertThat(redis.getExpire(cacheKey())).isPositive().isLessThanOrEqualTo(600);

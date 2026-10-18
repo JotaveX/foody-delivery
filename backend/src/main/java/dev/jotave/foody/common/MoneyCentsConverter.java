@@ -1,4 +1,4 @@
-package dev.jotave.foody.order;
+package dev.jotave.foody.common;
 
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;

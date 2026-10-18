@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import dev.jotave.foody.support.IntegrationTest;
 import dev.jotave.foody.support.TestAccounts;
 import dev.jotave.foody.support.TestAccounts.Account;
+import dev.jotave.foody.support.TestProducts;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -54,8 +55,8 @@ class IdempotencyIT extends IntegrationTest {
   void replayReturnsTheSameOrderWithoutCreatingAnother() {
     String key = UUID.randomUUID().toString();
 
-    ResponseEntity<Map<String, Object>> first = createOrder(order("X-Burger"), key);
-    ResponseEntity<Map<String, Object>> replay = createOrder(order("X-Burger"), key);
+    ResponseEntity<Map<String, Object>> first = createOrder(order("x-burguer"), key);
+    ResponseEntity<Map<String, Object>> replay = createOrder(order("x-burguer"), key);
 
     assertThat(first.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     assertThat(first.getHeaders().containsKey(IdempotencyAspect.REPLAYED_HEADER)).isFalse();
@@ -69,9 +70,9 @@ class IdempotencyIT extends IntegrationTest {
   @Test
   void sameKeyWithADifferentBodyIsUnprocessable() {
     String key = UUID.randomUUID().toString();
-    assertThat(createOrder(order("X-Burger"), key).getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(createOrder(order("x-burguer"), key).getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
-    ResponseEntity<Map<String, Object>> response = createOrder(order("X-Salada"), key);
+    ResponseEntity<Map<String, Object>> response = createOrder(order("x-bacon"), key);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
     assertThat(response.getBody())
@@ -90,7 +91,7 @@ class IdempotencyIT extends IntegrationTest {
       calls.add(
           () -> {
             start.await();
-            return createOrder(order("X-Burger"), key).getStatusCode();
+            return createOrder(order("x-burguer"), key).getStatusCode();
           });
     }
 
@@ -112,12 +113,12 @@ class IdempotencyIT extends IntegrationTest {
   @Test
   void failedRequestReleasesTheKeyForARetry() {
     String key = UUID.randomUUID().toString();
-    Map<String, Object> unusableAddress = order("X-Burger");
+    Map<String, Object> unusableAddress = order("x-burguer");
     unusableAddress.put("addressId", 999_999);
 
     assertThat(createOrder(unusableAddress, key).getStatusCode())
         .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
-    ResponseEntity<Map<String, Object>> retry = createOrder(order("X-Burger"), key);
+    ResponseEntity<Map<String, Object>> retry = createOrder(order("x-burguer"), key);
 
     assertThat(retry.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     assertThat(retry.getHeaders().containsKey(IdempotencyAspect.REPLAYED_HEADER)).isFalse();
@@ -127,7 +128,7 @@ class IdempotencyIT extends IntegrationTest {
   @Test
   void keysAreScopedPerUser() {
     String key = UUID.randomUUID().toString();
-    assertThat(createOrder(order("X-Burger"), key).getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(createOrder(order("x-burguer"), key).getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
     Account other = TestAccounts.create(http);
     account = other;
@@ -137,22 +138,22 @@ class IdempotencyIT extends IntegrationTest {
             Long.class,
             other.email());
 
-    ResponseEntity<Map<String, Object>> response = createOrder(order("X-Burger"), key);
+    ResponseEntity<Map<String, Object>> response = createOrder(order("x-burguer"), key);
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     assertThat(response.getHeaders().containsKey(IdempotencyAspect.REPLAYED_HEADER)).isFalse();
   }
 
   @Test
   void withoutTheHeaderEveryRequestCreatesAnOrder() {
-    createOrder(order("X-Burger"), null);
-    createOrder(order("X-Burger"), null);
+    createOrder(order("x-burguer"), null);
+    createOrder(order("x-burguer"), null);
 
     assertThat(ordersOfAccount()).isEqualTo(2);
   }
 
   @Test
   void malformedKeyIsBadRequest() {
-    ResponseEntity<Map<String, Object>> response = createOrder(order("X-Burger"), "not-a-uuid");
+    ResponseEntity<Map<String, Object>> response = createOrder(order("x-burguer"), "not-a-uuid");
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(response.getBody())
@@ -160,10 +161,11 @@ class IdempotencyIT extends IntegrationTest {
     assertThat(ordersOfAccount()).isZero();
   }
 
-  private Map<String, Object> order(String itemName) {
+  private Map<String, Object> order(String productSlug) {
     Map<String, Object> body = new HashMap<>();
     body.put("customerName", "Maria Silva");
-    body.put("items", List.of(Map.of("name", itemName, "quantity", 1, "unitPrice", 20.00)));
+    body.put(
+        "items", List.of(Map.of("productId", TestProducts.idOf(jdbc, productSlug), "quantity", 1)));
     body.put("addressId", addressId);
     return body;
   }

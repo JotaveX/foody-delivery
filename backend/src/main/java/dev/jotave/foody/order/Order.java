@@ -1,6 +1,7 @@
 package dev.jotave.foody.order;
 
 import dev.jotave.foody.address.Address;
+import dev.jotave.foody.common.MoneyCentsConverter;
 import dev.jotave.foody.common.Timestamps;
 import dev.jotave.foody.user.User;
 import jakarta.persistence.CascadeType;

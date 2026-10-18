@@ -11,6 +11,7 @@ import dev.jotave.foody.support.IntegrationTest;
 import dev.jotave.foody.support.RecordedOrderEvents;
 import dev.jotave.foody.support.TestAccounts;
 import dev.jotave.foody.support.TestAccounts.Account;
+import dev.jotave.foody.support.TestProducts;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -39,11 +40,15 @@ class OrderIT extends IntegrationTest {
 
   private Account account;
   private long defaultAddressId;
+  private long burgerId;
+  private long sodaId;
 
   @BeforeEach
   void createAccount() {
     account = TestAccounts.create(http);
     defaultAddressId = defaultAddressIdOf(account);
+    burgerId = TestProducts.idOf(jdbc, "x-burguer");
+    sodaId = TestProducts.idOf(jdbc, "refrigerante-lata");
   }
 
   @Test
@@ -56,7 +61,7 @@ class OrderIT extends IntegrationTest {
     assertThat(created.getBody())
         .containsEntry("status", "RECEBIDO")
         .containsEntry("customerName", "Maria Silva")
-        .containsEntry("totalAmount", 33.9);
+        .containsEntry("totalAmount", 56.7);
 
     for (OrderStatus next : List.of(EM_PREPARO, SAIU_PARA_ENTREGA, ENTREGUE)) {
       ResponseEntity<Map<String, Object>> changed = changeStatus(orderId, next.name());
@@ -96,10 +101,20 @@ class OrderIT extends IntegrationTest {
 
     Map<String, Object> order = get("/orders/" + orderId).getBody();
 
-    assertThat(order).containsEntry("totalAmount", 33.9);
+    assertThat(order).containsEntry("totalAmount", 56.7);
     assertThat(list(order.get("items")))
-        .extracting(i -> i.get("name"), i -> i.get("quantity"), i -> i.get("subtotal"))
-        .containsExactly(tuple("X-Burger", 2, 25.0), tuple("Refrigerante", 1, 8.9));
+        .extracting(
+            i -> ((Number) i.get("productId")).longValue(),
+            i -> i.get("name"),
+            i -> i.get("quantity"),
+            i -> i.get("unitPrice"),
+            i -> i.get("subtotal"))
+        .containsExactly(
+            tuple(burgerId, "X-Burguer", 2, 24.9, 49.8),
+            tuple(sodaId, "Refrigerante Lata", 1, 6.9, 6.9));
+    assertThat(list(order.get("items")).getFirst().get("imageUrl"))
+        .isEqualTo(
+            "https://storage.googleapis.com/bright-torus-356608-foody-images/catalog/x-burguer.webp");
     assertThat(map(order.get("deliveryAddress")))
         .containsEntry("id", (int) defaultAddressId)
         .containsEntry("street", "Avenida Paulista")
@@ -195,13 +210,100 @@ class OrderIT extends IntegrationTest {
     Map<String, Object> empty = withAddressId(defaultAddressId);
     empty.put("items", List.of());
     Map<String, Object> badItem = withAddressId(defaultAddressId);
-    badItem.put("items", List.of(Map.of("name", "", "quantity", 0, "unitPrice", 1.999)));
+    badItem.put("items", List.of(Map.of("quantity", 0)));
 
     assertThat(map(createOrder(empty).getBody().get("errors"))).containsKey("items");
     ResponseEntity<Map<String, Object>> response = createOrder(badItem);
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     assertThat(map(response.getBody().get("errors")))
-        .containsKeys("items[0].name", "items[0].quantity", "items[0].unitPrice");
+        .containsKeys("items[0].productId", "items[0].quantity");
+  }
+
+  @Test
+  void repeatedProductsAreMergedIntoOneItem() {
+    Map<String, Object> body = withAddressId(defaultAddressId);
+    body.put(
+        "items",
+        List.of(
+            Map.of("productId", burgerId, "quantity", 1),
+            Map.of("productId", sodaId, "quantity", 1),
+            Map.of("productId", burgerId, "quantity", 2)));
+
+    Map<String, Object> order = createOrder(body).getBody();
+
+    assertThat(order).containsEntry("totalAmount", 81.6);
+    assertThat(list(order.get("items")))
+        .extracting(i -> ((Number) i.get("productId")).longValue(), i -> i.get("quantity"))
+        .containsExactly(tuple(burgerId, 3), tuple(sodaId, 1));
+  }
+
+  @Test
+  void mergedQuantityAboveTheLimitIsBadRequest() {
+    Map<String, Object> body = withAddressId(defaultAddressId);
+    body.put(
+        "items",
+        List.of(
+            Map.of("productId", burgerId, "quantity", 999),
+            Map.of("productId", burgerId, "quantity", 1)));
+
+    assertThat(createOrder(body).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+  }
+
+  @Test
+  void unknownOrInactiveProductIsUnprocessable() {
+    long inactive = TestProducts.insert(jdbc, 1000, false);
+    int ordersBefore = countOrders();
+
+    for (long productId : List.of(999999L, inactive)) {
+      Map<String, Object> body = withAddressId(defaultAddressId);
+      body.put(
+          "items",
+          List.of(
+              Map.of("productId", burgerId, "quantity", 1),
+              Map.of("productId", productId, "quantity", 1)));
+
+      ResponseEntity<Map<String, Object>> response = createOrder(body);
+
+      assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+      assertThat(response.getBody().get("productIds")).isEqualTo(List.of((int) productId));
+      assertThat(map(response.getBody().get("errors"))).containsKey("items");
+    }
+    assertThat(countOrders()).isEqualTo(ordersBefore);
+  }
+
+  @Test
+  void priceSentByTheClientIsIgnored() {
+    Map<String, Object> body = withAddressId(defaultAddressId);
+    body.put(
+        "items",
+        List.of(Map.of("productId", burgerId, "quantity", 2, "unitPrice", 0.01, "price", 0.01)));
+    body.put("totalAmount", 0.02);
+
+    ResponseEntity<Map<String, Object>> created = createOrder(body);
+
+    assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(created.getBody()).containsEntry("totalAmount", 49.8);
+    assertThat(list(created.getBody().get("items")).getFirst()).containsEntry("unitPrice", 24.9);
+  }
+
+  @Test
+  void productPriceChangeDoesNotAlterExistingOrders() {
+    long productId = TestProducts.insert(jdbc, 1000, true);
+    Map<String, Object> body = withAddressId(defaultAddressId);
+    body.put("items", List.of(Map.of("productId", productId, "quantity", 2)));
+    long before = id(createOrder(body).getBody());
+
+    jdbc.update("UPDATE products SET price_cents = 5000 WHERE id = ?", productId);
+    long after = id(createOrder(body).getBody());
+
+    Map<String, Object> old = get("/orders/" + before).getBody();
+    assertThat(old).containsEntry("totalAmount", 20.0);
+    assertThat(list(old.get("items")).getFirst()).containsEntry("unitPrice", 10.0);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT unit_price_cents FROM order_items WHERE order_id = ?", Long.class, before))
+        .isEqualTo(1000L);
+    assertThat(get("/orders/" + after).getBody()).containsEntry("totalAmount", 100.0);
   }
 
   @Test
@@ -282,10 +384,14 @@ class OrderIT extends IntegrationTest {
     assertThat(((Number) page.get("totalElements")).longValue()).isGreaterThanOrEqualTo(3);
     List<Map<String, Object>> content = list(page.get("content"));
     assertThat(content).extracting(o -> id(o)).containsExactly(third, second);
-    assertThat(content.getFirst())
-        .containsEntry("itemCount", 2)
-        .containsEntry("totalAmount", 33.9)
-        .doesNotContainKey("items");
+    assertThat(content.getFirst()).containsEntry("itemCount", 2).containsEntry("totalAmount", 56.7);
+    assertThat(list(content.getFirst().get("items")))
+        .extracting(i -> i.get("name"), i -> i.get("quantity"))
+        .containsExactly(tuple("X-Burguer", 2), tuple("Refrigerante Lata", 1));
+    assertThat(list(content.getFirst().get("items")))
+        .allSatisfy(
+            i ->
+                assertThat(i).containsKeys("productId", "imageUrl").doesNotContainKey("unitPrice"));
     assertThat(map(content.getFirst().get("deliveryAddress")))
         .containsEntry("street", "Avenida Paulista")
         .containsEntry("city", "São Paulo");
@@ -317,8 +423,8 @@ class OrderIT extends IntegrationTest {
     body.put(
         "items",
         List.of(
-            Map.of("name", "X-Burger", "quantity", 2, "unitPrice", 12.50),
-            Map.of("name", "Refrigerante", "quantity", 1, "unitPrice", 8.90)));
+            Map.of("productId", burgerId, "quantity", 2),
+            Map.of("productId", sodaId, "quantity", 1)));
     return body;
   }
 
