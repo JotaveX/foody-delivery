@@ -59,14 +59,6 @@ export async function loginViaUi(page: Page, user: Pick<TestUser, 'email' | 'pas
   await expect(page.getByRole('button', { name: 'Sair' })).toBeVisible()
 }
 
-export async function goToOrders(page: Page) {
-  await page
-    .getByRole('navigation', { name: 'Principal' })
-    .getByRole('link', { name: 'Pedidos' })
-    .click()
-  await expect(page).toHaveURL(/\/orders$/)
-}
-
 /**
  * Types a CEP known to the ViaCEP stub into the address form inside `form` and waits for the
  * autofill. Scoped because saved addresses elsewhere on the page also mention "CEP".
@@ -83,7 +75,15 @@ export async function fillAddress(
   await form.getByLabel('Apelido do endereço (opcional)').fill(label)
 }
 
-/** The card of one order in the /orders list. */
+/** The ticket (board) or row (list) of one order on /orders. */
 export function orderCard(page: Page, id: number) {
   return page.getByRole('listitem', { name: `Pedido #${id}`, exact: true })
+}
+
+/** One order's ticket inside a board column ("Recebido", "Em preparo", "Saiu para entrega"). */
+export function ticketIn(page: Page, column: string, id: number) {
+  return page.getByRole('region', { name: column, exact: true }).getByRole('listitem', {
+    name: `Pedido #${id}`,
+    exact: true,
+  })
 }

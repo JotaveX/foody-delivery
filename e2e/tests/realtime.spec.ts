@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test'
 import { createOrder, newUser, registerUser, tokenFor } from '../support/api'
-import { CEPS, expect, loginViaUi, orderCard, test } from '../support/fixtures'
+import { CEPS, expect, loginViaUi, orderCard, test, ticketIn } from '../support/fixtures'
 
 /**
  * Resolves once the page has subscribed to the order topic over STOMP. Must be called before the
@@ -47,10 +47,8 @@ test('mudança de status aparece em outro navegador sem recarregar a página', a
     await loginViaUi(observerPage, observer)
     await observerLive
 
-    const actorCard = orderCard(actorPage, orderId)
-    const observerCard = orderCard(observerPage, orderId)
-    await expect(actorCard.locator('.status-badge')).toHaveText('Recebido')
-    await expect(observerCard.locator('.status-badge')).toHaveText('Recebido')
+    await expect(ticketIn(actorPage, 'Recebido', orderId)).toBeVisible()
+    await expect(ticketIn(observerPage, 'Recebido', orderId)).toBeVisible()
 
     // Proof that the observer neither reloads nor refetches: the update must come over STOMP.
     await observerPage.evaluate(() => {
@@ -63,11 +61,14 @@ test('mudança de status aparece em outro navegador sem recarregar a página', a
       }
     })
 
-    await actorCard.getByRole('button', { name: 'Iniciar preparo' }).click()
-    await expect(actorCard.locator('.status-badge')).toHaveText('Em preparo')
+    await orderCard(actorPage, orderId).getByRole('button', { name: 'Iniciar preparo' }).click()
+    await expect(ticketIn(actorPage, 'Em preparo', orderId)).toBeVisible()
 
-    await expect(observerCard.locator('.status-badge')).toHaveText('Em preparo', { timeout: 5_000 })
-    await expect(observerCard.getByRole('button', { name: 'Saiu para entrega' })).toBeVisible()
+    // The ticket moves to the next column on the observer's board.
+    const observerTicket = ticketIn(observerPage, 'Em preparo', orderId)
+    await expect(observerTicket).toBeVisible({ timeout: 5_000 })
+    await expect(ticketIn(observerPage, 'Recebido', orderId)).toHaveCount(0)
+    await expect(observerTicket.getByRole('button', { name: 'Saiu p/ entrega' })).toBeVisible()
     expect(
       await observerPage.evaluate(() => (window as { e2eNotReloaded?: boolean }).e2eNotReloaded),
     ).toBe(true)

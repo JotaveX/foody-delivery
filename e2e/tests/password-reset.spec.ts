@@ -36,7 +36,7 @@ test('recuperação de senha pelo link do e-mail', async ({ page, request }) => 
 
   await test.step('entra com a nova senha; a antiga deixa de valer', async () => {
     await loginViaUi(page, { email: user.email, password: newPassword })
-    await expect(page.getByText(`Olá, ${user.name}`)).toBeVisible()
+    await expect(page.getByRole('banner')).toContainText(user.name)
     expect((await apiLogin(request, user.email, user.password)).status()).toBe(401)
   })
 })
