@@ -3,11 +3,16 @@ package dev.jotave.foody.auth;
 import dev.jotave.foody.mail.EmailDeliveryException;
 import dev.jotave.foody.mail.EmailMessage;
 import dev.jotave.foody.mail.EmailSender;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StreamUtils;
 import org.springframework.web.util.HtmlUtils;
 
 /** Writes and sends the reset e-mail off the request thread (see {@code mail.MailConfig}). */
@@ -16,10 +21,19 @@ public class PasswordResetMailer {
 
   private static final Logger log = LoggerFactory.getLogger(PasswordResetMailer.class);
 
+  /** Kitchen-ticket layout (see DESIGN.md), with {{name}}, {{link}} and {{minutes}} slots. */
+  private static final String TEMPLATE = "mail/password-reset.html";
+
   private final EmailSender emailSender;
+  private final String template;
 
   public PasswordResetMailer(EmailSender emailSender) {
     this.emailSender = emailSender;
+    try (var in = new ClassPathResource(TEMPLATE).getInputStream()) {
+      this.template = StreamUtils.copyToString(in, StandardCharsets.UTF_8);
+    } catch (IOException e) {
+      throw new UncheckedIOException("Missing e-mail template " + TEMPLATE, e);
+    }
   }
 
   /**
@@ -41,20 +55,20 @@ public class PasswordResetMailer {
         Se você não pediu isso, ignore este e-mail: sua senha continua a mesma.
         """
             .formatted(name, minutes, link);
-    String html =
-        """
-        <p>Olá, %s.</p>
-        <p>Recebemos um pedido para redefinir a senha da sua conta Foody.</p>
-        <p><a href="%s">Criar uma nova senha</a></p>
-        <p>O link vale por %d minutos e só pode ser usado uma vez.</p>
-        <p>Se você não pediu isso, ignore este e-mail: sua senha continua a mesma.</p>
-        """
-            .formatted(HtmlUtils.htmlEscape(name), HtmlUtils.htmlEscape(link), minutes);
+    String html = html(name, link, minutes);
     try {
       emailSender.send(new EmailMessage(to, subject, html, text, "password-reset/" + tokenHash));
     } catch (EmailDeliveryException e) {
       // Nobody is waiting on this thread; the user can ask for a new link.
       log.error("Could not send the password reset e-mail", e);
     }
+  }
+
+  /** The HTML body; every value is escaped, so a name like {@code <b>} shows up as typed. */
+  String html(String name, String link, long minutes) {
+    return template
+        .replace("{{name}}", HtmlUtils.htmlEscape(name))
+        .replace("{{link}}", HtmlUtils.htmlEscape(link))
+        .replace("{{minutes}}", String.valueOf(minutes));
   }
 }
