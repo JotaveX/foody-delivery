@@ -14,7 +14,6 @@ export function AppLayout() {
         </Link>
         <nav className="app-nav" aria-label="Principal">
           <NavLink to="/orders">Pedidos</NavLink>
-          <NavLink to="/addresses">Endereços</NavLink>
         </nav>
         <div className="app-header-user">
           <span>

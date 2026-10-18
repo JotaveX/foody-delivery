@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { Address, AddressInput } from '../auth/types'
+import type { AddressInput } from '../auth/types'
 
 const required = (message: string) => z.string().trim().min(1, message)
 
@@ -31,20 +31,6 @@ export const emptyAddress: AddressFormValues = {
   city: '',
   state: '',
   label: '',
-}
-
-/** Form values for editing an existing address. */
-export function toAddressFormValues(address: Address): AddressFormValues {
-  return {
-    zipCode: address.zipCode.replace(/^(\d{5})(\d{3})$/, '$1-$2'),
-    street: address.street,
-    number: address.number,
-    complement: address.complement ?? '',
-    neighborhood: address.neighborhood,
-    city: address.city,
-    state: address.state,
-    label: address.label ?? '',
-  }
 }
 
 /** API payload: optional fields left blank are omitted. */

@@ -210,7 +210,7 @@ function NewOrderFormView({ addresses }: { addresses: Address[] }) {
                     <span className="address-option-body">
                       <span className="address-option-title">+ Cadastrar novo endereço</span>
                       <span className="address-option-meta">
-                        Ele também fica salvo em Meus endereços.
+                        Ele fica salvo para os próximos pedidos.
                       </span>
                     </span>
                   </label>
@@ -236,12 +236,6 @@ function NewOrderFormView({ addresses }: { addresses: Address[] }) {
                     </label>
                   )}
                 </div>
-              )}
-
-              {hasAddresses && (
-                <p className="field-hint">
-                  Para editar ou excluir endereços, use <Link to="/addresses">Meus endereços</Link>.
-                </p>
               )}
             </section>
           </div>
