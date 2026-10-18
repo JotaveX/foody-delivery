@@ -136,7 +136,7 @@ Se o `spotless:check` falhar, rode `./mvnw spotless:apply` em `backend/`. O `goo
 
 - Spring Boot 3.5.x, `groupId` `dev.jotave.foody`, pacote raiz `dev.jotave.foody`.
 - SQLite em `./data/tracker.db` (sobrescrevível com `SQLITE_PATH`); os PRAGMAs `journal_mode=WAL`, `busy_timeout=5000` e `foreign_keys=true` vão na URL JDBC e são aplicados a cada conexão. `SqliteDirectoryInitializer` cria o diretório do arquivo.
-- Perfis: `dev` é o default (defaults locais para segredos, SMTP no Mailpit, storage local); `prod` exige `JWT_SECRET`, `RESEND_API_KEY`, `MAIL_FROM`, `GCS_BUCKET` etc. via variáveis de ambiente e loga em JSON.
+- Perfis: `dev` é o default (defaults locais para segredos, SMTP no Mailpit); `prod` exige `JWT_SECRET`, `RESEND_API_KEY`, `MAIL_FROM` etc. via variáveis de ambiente e loga em JSON. Nenhum perfil acessa o GCS: as imagens do catálogo são lidas da URL pública do bucket, e a VM não tem papel nele.
 - Actuator expõe só `health`, com `/actuator/health/liveness` e `/actuator/health/readiness` (readiness inclui Redis).
 - `CorrelationIdFilter` propaga `X-Correlation-Id` (MDC `correlationId`).
 - Testes de integração estendem `dev.jotave.foody.support.IntegrationTest` (Redis via Testcontainers + SQLite em diretório temporário por execução). O container Redis é **singleton da JVM** (não `@Container`): com `@Container` ele seria reiniciado em outra porta a cada classe, e os contextos Spring em cache ficariam apontando para a porta antiga. A base sobe os limites de rate limit (todos os testes vêm de 127.0.0.1); `RateLimitIT` sobrescreve com `@TestPropertySource`.

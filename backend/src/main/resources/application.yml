@@ -67,10 +67,6 @@ app:
     ttl: 30m
     # At most one reset e-mail per user in this interval.
     cooldown: 1m
-  storage:
-    type: ${STORAGE_TYPE:gcs}
-    bucket: ${GCS_BUCKET}
-    local-path: ${STORAGE_LOCAL_PATH:./data/uploads}
   catalog:
     # Public, credential-free URL of the catalog images (the images bucket, also in dev); a
     # product's imageUrl is this base + "/" + its image_key.
@@ -150,9 +146,6 @@ app:
     from: ${MAIL_FROM:Foody <no-reply@foody.local>}
   password-reset:
     url: ${PASSWORD_RESET_URL:http://localhost:5173/reset-password}
-  storage:
-    type: ${STORAGE_TYPE:local}
-    bucket: ${GCS_BUCKET:foody-dev}
   cors:
     # The Vite dev server (it also proxies /api and /ws, which then need no CORS).
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}

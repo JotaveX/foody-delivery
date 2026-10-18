@@ -27,6 +27,7 @@ flowchart LR
             litestream["Litestream"]
         end
         gcs[("GCS<br/>réplica do SQLite")]
+        images[("GCS público<br/>imagens do catálogo")]
         ar["Artifact Registry"]
         sm["Secret Manager"]
     end
@@ -35,6 +36,7 @@ flowchart LR
 
     user -- "HTML, JS, CSS" --> pages
     user -- "REST (CORS) e WebSocket /ws" --> caddy
+    user -- "imagens (leitura pública)" --> images
     caddy --> backend
     backend --> redis
     backend --> sqlite
@@ -54,6 +56,9 @@ flowchart LR
 - **API** numa VM e2-micro do GCP (Free Tier, `us-east1`) com docker compose: Caddy (TLS automático) → backend, com Redis e o
   Litestream replicando o SQLite para o GCS. O registro DNS da API fica **sem proxy** da
   Cloudflare, para o Caddy emitir o próprio certificado e o rate limit ver o IP real do cliente.
+- **Imagens do catálogo** num bucket público do GCS, que o navegador lê direto, sem passar pela
+  VM. Sem upload, a VM segue o menor privilégio: não tem papel nenhum no bucket de imagens nem
+  `serviceAccountTokenCreator` (não assina URLs). Ela só escreve no bucket privado do Litestream.
 - **CORS**: em produção o backend aceita `https://foody.jotave.dev` (`CORS_ALLOWED_ORIGINS`) e
   os previews do Pages, pelo padrão `https://*.foody.pages.dev` (`CORS_ALLOWED_ORIGIN_PATTERNS`).
   Em dev, só `http://localhost:5173`. As mesmas regras valem para o `Origin` do WebSocket.
