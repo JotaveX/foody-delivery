@@ -1,7 +1,8 @@
 name: Deploy
 
 # Production deploy on every push to main, after the full CI suite passes:
-# - backend: image to Artifact Registry, then infra/deploy.sh on the VM through an IAP tunnel;
+# - backend: image to Artifact Registry, then /opt/foody/deploy.sh on the VM through an IAP tunnel
+#   (the infra files live only on the VM, they are not in the repository);
 # - frontend: static build published to Cloudflare Pages.
 #
 # Repository configuration (Settings > Secrets and variables > Actions), see infra/SETUP.md:
@@ -71,19 +72,12 @@ jobs:
           cache-from: type=gha,scope=backend
           cache-to: type=gha,scope=backend,mode=max
 
-      - name: Copy infra files to the VM
+      # infra/ is local only (.gitignore): docker-compose.prod.yml, Caddyfile, litestream.yml,
+      # prod.env and deploy.sh are copied to /opt/foody by hand (infra/SETUP.md, section 11).
+      - name: Deploy on the VM
         run: >-
-          gcloud compute scp --tunnel-through-iap --zone="$ZONE" --quiet
-          infra/docker-compose.prod.yml infra/Caddyfile infra/litestream.yml infra/prod.env infra/deploy.sh
-          "$VM":/tmp/
-
-      - name: Install infra files and deploy
-        run: >-
-          gcloud compute ssh "$VM" --tunnel-through-iap --zone="$ZONE" --quiet --command="
-          sudo install -m 644 -t /opt/foody /tmp/docker-compose.prod.yml /tmp/Caddyfile /tmp/litestream.yml /tmp/prod.env &&
-          sudo install -m 755 -t /opt/foody /tmp/deploy.sh &&
-          rm -f /tmp/docker-compose.prod.yml /tmp/Caddyfile /tmp/litestream.yml /tmp/prod.env /tmp/deploy.sh &&
-          sudo /opt/foody/deploy.sh $IMAGE_TAG"
+          gcloud compute ssh "$VM" --tunnel-through-iap --zone="$ZONE" --quiet
+          --command="sudo /opt/foody/deploy.sh $IMAGE_TAG"
 
   deploy-frontend:
     name: Deploy frontend (Cloudflare Pages)

@@ -7,7 +7,7 @@ Desafio técnico de processo seletivo: um mini rastreador de pedidos de delivery
 ```
 backend/    Java 21, Spring Boot 3, Maven
 frontend/   React, Vite, TypeScript
-infra/      Deploy (docker compose, Caddy, Litestream; front no Cloudflare Pages)
+infra/      Deploy (docker compose, Caddy, Litestream; front no Cloudflare Pages) — só local, no .gitignore
 ```
 
 ## Requisitos obrigatórios do desafio
@@ -104,7 +104,9 @@ docker compose down
 
 ### Infra (`infra/`)
 
-Produção é implantada pelo `.github/workflows/deploy.yml` (backend: docker compose na VM com Caddy + Litestream, via `infra/deploy.sh`; frontend: `wrangler pages deploy`).
+Produção é implantada pelo `.github/workflows/deploy.yml` (backend: docker compose na VM com Caddy + Litestream, via `/opt/foody/deploy.sh`; frontend: `wrangler pages deploy`).
+
+**`infra/` é só local** (está no `.gitignore`): o workflow não copia arquivos de infra, apenas executa o `deploy.sh` que já está na VM. Mudanças em `docker-compose.prod.yml`, `Caddyfile`, `litestream.yml`, `prod.env` ou `deploy.sh` precisam ser copiadas à mão para `/opt/foody` (comandos na seção 11 do `infra/SETUP.md`).
 
 > Os comandos acima refletem a estrutura planejada; ajuste esta seção se nomes de arquivos ou scripts mudarem durante a implementação.
 
