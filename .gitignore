@@ -43,3 +43,6 @@ Thumbs.db
 
 # Infra (local only)
 infra/
+
+# Catalog image scripts (local only)
+scripts/catalog/

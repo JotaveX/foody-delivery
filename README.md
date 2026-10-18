@@ -197,3 +197,10 @@ imagem.
   max-age=300`, para o navegador nem chegar à API. Como o catálogo só muda por migration, que roda
   na subida da aplicação, o cache é limpo no startup (`CatalogCacheEvictor`). A validação do
   pedido não usa o cache: preço e disponibilidade vêm sempre do banco.
+
+### Imagens do catálogo
+
+Geradas uma vez, à mão, por um script local (`scripts/catalog/`, fora do repositório, como o
+`infra/`): para cada produto, busca uma foto no Pexels com um termo em inglês, recorta e converte
+para WebP 800x600 (qualidade 80), com o nome batendo com o `image_key` do seed. Os créditos vão
+para `infra/catalog/CREDITS.md`. O envio para o bucket está em `infra/SETUP.md`.
