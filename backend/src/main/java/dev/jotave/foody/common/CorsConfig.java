@@ -25,6 +25,7 @@ class CorsConfig {
   CorsConfigurationSource corsConfigurationSource(CorsProperties properties) {
     var config = new CorsConfiguration();
     config.setAllowedOrigins(properties.allowedOrigins());
+    config.setAllowedOriginPatterns(properties.allowedOriginPatterns());
     config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
     config.setAllowedHeaders(
         List.of(HttpHeaders.AUTHORIZATION, HttpHeaders.CONTENT_TYPE, IdempotencyAspect.KEY_HEADER));

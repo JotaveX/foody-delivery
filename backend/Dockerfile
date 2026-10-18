@@ -31,8 +31,11 @@ COPY --from=build /workspace/extracted/application/ ./
 
 USER app
 
+# Sized for an e2-micro (1 GB RAM, 600M container limit): a fixed 350M heap, the serial GC
+# (no parallel GC threads or regions), C1 only (smaller code cache, faster startup) and smaller
+# thread stacks (Tomcat + WebSocket threads).
 ENV SQLITE_PATH=/data/tracker.db \
-    JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=60 -XX:+ExitOnOutOfMemoryError"
+    JAVA_TOOL_OPTIONS="-Xmx350m -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -Xss512k -XX:+ExitOnOutOfMemoryError"
 
 EXPOSE 8080
 

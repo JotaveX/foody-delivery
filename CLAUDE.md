@@ -32,8 +32,9 @@ infra/      Deploy (docker compose, Caddy, Litestream; front no Cloudflare Pages
   - Google Cloud Storage → storage local de arquivos.
   
   O projeto precisa subir **sem nenhuma credencial real**.
-- **Produção**: frontend no **Cloudflare Pages** (`foody.jotave.dev`, upload direto via Wrangler no GitHub Actions); API numa VM na Compute Engine rodando docker compose, com Caddy (HTTPS) em `api.foody.jotave.dev` (registro DNS only, sem proxy da Cloudflare); Litestream replicando o SQLite para o GCS. Passo a passo em `infra/SETUP.md`.
-- **Roteamento**: em dev o front chama `/api` e `/ws` pelo proxy do Vite (mesma origem). Em produção usa `VITE_API_URL`/`VITE_WS_URL` (definidas no build) e fala com `api.foody.jotave.dev` cross-origin; o CORS e o `Origin` aceito no `/ws` vêm de `app.cors.allowed-origins` (`CORS_ALLOWED_ORIGINS`).
+- **Produção**: frontend no **Cloudflare Pages** (`foody.jotave.dev`, upload direto via Wrangler no GitHub Actions); API numa VM e2-micro na Compute Engine (Free Tier, `us-east1`) rodando docker compose, com Caddy (HTTPS) em `api.foody.jotave.dev` (registro DNS only, sem proxy da Cloudflare); Litestream replicando o SQLite para o GCS. Passo a passo em `infra/SETUP.md`.
+- **Roteamento**: em dev o front chama `/api` e `/ws` pelo proxy do Vite (mesma origem). Em produção usa `VITE_API_URL`/`VITE_WS_URL` (definidas no build) e fala com `api.foody.jotave.dev` cross-origin; o CORS e o `Origin` aceito no `/ws` vêm de `app.cors.allowed-origins` (`CORS_ALLOWED_ORIGINS`, origens exatas) e `app.cors.allowed-origin-patterns` (`CORS_ALLOWED_ORIGIN_PATTERNS`, ex.: `https://*.foody.pages.dev` para os previews do Pages).
+- **Free Tier do GCP**: a VM tem 1 GB de RAM. Os limites de memória do compose somam ~800M, e o backend roda com `-Xmx350m -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -Xss512k` (no `backend/Dockerfile`). Mudanças que aumentem memória, disco, imagens no Artifact Registry ou operações no GCS precisam caber nos limites da seção "Custos" do `infra/SETUP.md`.
 
 ## Convenções
 

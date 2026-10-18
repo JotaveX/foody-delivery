@@ -1,6 +1,6 @@
 # Foody Delivery
 
-[![Deploy](https://github.com/JotaveX/foodyDelivery/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/JotaveX/foodyDelivery/actions/workflows/deploy.yml)
+[![Deploy](https://github.com/JotaveX/foody-delivery/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/JotaveX/foody-delivery/actions/workflows/deploy.yml)
 
 Mini rastreador de pedidos de delivery.
 
@@ -19,7 +19,7 @@ flowchart LR
     end
 
     subgraph gcp[GCP]
-        subgraph vm["VM e2-small · api.foody.jotave.dev (DNS only)"]
+        subgraph vm["VM e2-micro · us-east1 · api.foody.jotave.dev (DNS only)"]
             caddy["Caddy<br/>HTTPS :443"]
             backend["Backend<br/>Spring Boot"]
             redis[("Redis<br/>rate limit, idempotência,<br/>cache, pub/sub")]
@@ -51,14 +51,16 @@ flowchart LR
   produção a SPA chama `https://api.foody.jotave.dev` e `wss://api.foody.jotave.dev/ws`
   (`VITE_API_URL` e `VITE_WS_URL`, definidas no build). Em dev, o proxy do Vite continua servindo
   `/api` e `/ws`.
-- **API** numa VM do GCP com docker compose: Caddy (TLS automático) → backend, com Redis e o
+- **API** numa VM e2-micro do GCP (Free Tier, `us-east1`) com docker compose: Caddy (TLS automático) → backend, com Redis e o
   Litestream replicando o SQLite para o GCS. O registro DNS da API fica **sem proxy** da
   Cloudflare, para o Caddy emitir o próprio certificado e o rate limit ver o IP real do cliente.
-- **CORS**: o backend aceita só `https://foody.jotave.dev` em produção (`CORS_ALLOWED_ORIGINS`;
-  em dev, `http://localhost:5173`), a mesma lista usada no `Origin` do WebSocket.
+- **CORS**: em produção o backend aceita `https://foody.jotave.dev` (`CORS_ALLOWED_ORIGINS`) e
+  os previews do Pages, pelo padrão `https://*.foody.pages.dev` (`CORS_ALLOWED_ORIGIN_PATTERNS`).
+  Em dev, só `http://localhost:5173`. As mesmas regras valem para o `Origin` do WebSocket.
 - **Deploy**: todo push na `main` roda os testes e depois publica backend e frontend
   (`.github/workflows/deploy.yml`). PRs ganham um preview do front no Pages, com a URL comentada
-  no PR. Passo a passo da infraestrutura em [`infra/SETUP.md`](infra/SETUP.md).
+  no PR. Passo a passo da infraestrutura (e o que cabe no Free Tier do GCP) em
+  [`infra/SETUP.md`](infra/SETUP.md).
 
 ## Rodando localmente
 
@@ -126,8 +128,9 @@ O front se conecta em `/ws` (STOMP sobre WebSocket puro) e assina `/topic/orders
   é publicado no canal Redis `order-events`. Toda instância assina esse canal e repassa a
   mensagem para os seus clientes pelo broker local. Assim, com várias instâncias, o cliente recebe
   a mudança mesmo conectado em outra instância que não a que a processou.
-- **Origens:** as mesmas do CORS, `CORS_ALLOWED_ORIGINS` (origens exatas separadas por vírgula; em
-  dev, `http://localhost:5173`).
+- **Origens:** as mesmas do CORS: `CORS_ALLOWED_ORIGINS` (origens exatas separadas por vírgula; em
+  dev, `http://localhost:5173`) e `CORS_ALLOWED_ORIGIN_PATTERNS` (padrões, como
+  `https://*.foody.pages.dev`).
 
 ## Cache de pedidos (Spring Cache + Redis)
 

@@ -64,6 +64,9 @@ jobs:
         with:
           context: backend
           push: true
+          # One manifest per push (no attestation index): keeps the repository at the 2 versions
+          # the cleanup policy allows, inside the 0.5 GB Artifact Registry free tier.
+          provenance: false
           tags: ${{ env.REGISTRY }}/backend:${{ env.IMAGE_TAG }}
           cache-from: type=gha,scope=backend
           cache-to: type=gha,scope=backend,mode=max

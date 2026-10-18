@@ -144,7 +144,7 @@ jobs:
               `- Branch: ${process.env.ALIAS_URL || '(sem alias)'}`,
               `- Deploy deste commit: ${process.env.DEPLOYMENT_URL}`,
               '',
-              `Commit: ${context.sha.slice(0, 7)}. A API de produção só aceita CORS de https://foody.jotave.dev, então chamadas à API não funcionam a partir do preview.`,
+              `Commit: ${context.sha.slice(0, 7)}. O preview usa a API de produção (CORS libera https://*.foody.pages.dev): os dados são reais.`,
             ].join('\n')
             const { owner, repo } = context.repo
             const issue_number = context.issue.number
