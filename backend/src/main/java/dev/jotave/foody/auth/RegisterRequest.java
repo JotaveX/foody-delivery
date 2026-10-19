@@ -13,7 +13,7 @@ public record RegisterRequest(
         @Email(message = "Informe um e-mail válido.")
         @Size(max = 254, message = "O e-mail deve ter no máximo 254 caracteres.")
         String email,
-    // BCrypt only uses the first 72 bytes of the input.
     @NotBlank(message = "Informe a senha.")
-        @Size(min = 8, max = 72, message = "A senha deve ter entre 8 e 72 caracteres.")
+        @Size(min = 8, message = "A senha deve ter no mínimo 8 caracteres.")
+        @FitsBcrypt
         String password) {}

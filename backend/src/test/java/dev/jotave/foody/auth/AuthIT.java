@@ -59,6 +59,24 @@ class AuthIT extends IntegrationTest {
   }
 
   @Test
+  void passwordOverBcryptByteLimitIsRejectedEvenWithinTheCharacterLimit() {
+    // 40 characters, 80 bytes in UTF-8: BCrypt would throw instead of hashing it.
+    ResponseEntity<Map> response = register(uniqueEmail(), "é".repeat(40));
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(map(response.getBody().get("errors"))).containsKey("password");
+  }
+
+  @Test
+  void passwordOfExactlyTheBcryptByteLimitCanLogIn() {
+    String email = uniqueEmail();
+    String password = "é".repeat(36); // 72 bytes
+
+    assertThat(register(email, password).getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(login(email, password).getStatusCode()).isEqualTo(HttpStatus.OK);
+  }
+
+  @Test
   void loginReturnsTokenThatAuthenticatesMe() {
     String email = uniqueEmail();
     register(email);
@@ -123,10 +141,14 @@ class AuthIT extends IntegrationTest {
   }
 
   private ResponseEntity<Map> register(String email) {
+    return register(email, PASSWORD);
+  }
+
+  private ResponseEntity<Map> register(String email, String password) {
     var body = new java.util.HashMap<String, Object>();
     body.put("name", "Maria Silva");
     body.put("email", email);
-    body.put("password", PASSWORD);
+    body.put("password", password);
     return http.postForEntity("/auth/register", body, Map.class);
   }
 

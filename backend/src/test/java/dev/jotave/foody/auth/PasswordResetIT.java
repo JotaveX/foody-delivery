@@ -118,6 +118,18 @@ class PasswordResetIT extends IntegrationTest {
     assertThat(reset(token, NEW_PASSWORD).getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
   }
 
+  @Test
+  void passwordOverBcryptByteLimitIsRejectedWithoutConsumingTheToken() {
+    Account account = TestAccounts.createWithoutAddress(http);
+    forgot(account.email());
+    String token = tokenFrom(emails.awaitFor(account.email(), 1));
+
+    ResponseEntity<Map> response = reset(token, "é".repeat(40)); // 80 bytes
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(reset(token, NEW_PASSWORD).getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+  }
+
   private ResponseEntity<Void> forgot(String email) {
     return http.postForEntity("/auth/forgot-password", Map.of("email", email), Void.class);
   }

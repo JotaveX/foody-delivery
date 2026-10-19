@@ -5,16 +5,14 @@ import { Link, useNavigate, useSearchParams } from 'react-router'
 import { z } from 'zod'
 import { toApiError } from '../api/problem'
 import { resetPassword } from '../auth/passwordReset'
+import { passwordSchema } from '../auth/passwordSchema'
 import { AuthCard } from '../components/AuthCard'
 import { Field } from '../components/Field'
 import { FormAlert } from '../components/FormAlert'
 
 const resetSchema = z
   .object({
-    password: z
-      .string()
-      .min(8, 'A senha deve ter no mínimo 8 caracteres.')
-      .max(72, 'A senha deve ter no máximo 72 caracteres.'),
+    password: passwordSchema,
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {

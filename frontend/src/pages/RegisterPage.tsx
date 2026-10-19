@@ -4,6 +4,7 @@ import { useForm, type Path } from 'react-hook-form'
 import { Link, Navigate, useNavigate } from 'react-router'
 import { z } from 'zod'
 import { toApiError } from '../api/problem'
+import { passwordSchema } from '../auth/passwordSchema'
 import { useAuth } from '../auth/useAuth'
 import { AuthCard } from '../components/AuthCard'
 import { Field } from '../components/Field'
@@ -17,10 +18,7 @@ const registerSchema = z
       .min(1, 'Informe o nome.')
       .max(100, 'O nome deve ter no máximo 100 caracteres.'),
     email: z.string().trim().pipe(z.email('Informe um e-mail válido.')),
-    password: z
-      .string()
-      .min(8, 'A senha deve ter no mínimo 8 caracteres.')
-      .max(72, 'A senha deve ter no máximo 72 caracteres.'),
+    password: passwordSchema,
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {
