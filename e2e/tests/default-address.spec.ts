@@ -21,8 +21,10 @@ test('endereço novo marcado como padrão abre selecionado no próximo pedido', 
 
   await loginViaUi(page, user)
 
-  await test.step('pedido para outro endereço, marcado como padrão', async () => {
+  await test.step('pedido para outro endereço, salvo como padrão', async () => {
     await page.getByRole('link', { name: 'Novo pedido' }).click()
+    await page.getByRole('button', { name: 'Adicionar X-Burguer' }).click()
+    await page.getByRole('button', { name: 'Continuar' }).click()
     await expect(page.getByRole('radio', { name: /Casa/ })).toBeChecked()
 
     await page.getByRole('radio', { name: /Cadastrar novo endereço/ }).check()
@@ -33,13 +35,17 @@ test('endereço novo marcado como padrão abre selecionado no próximo pedido', 
       'Trabalho',
     )
     await page.getByLabel('Usar como meu endereço padrão').check()
-    await page.getByRole('button', { name: 'Adicionar X-Burguer' }).click()
+    await page.getByRole('button', { name: 'Salvar endereço' }).click()
+    // Saved: it is selected and the order needs no warning.
+    await expect(page.getByRole('radio', { name: /Trabalho/ })).toBeChecked()
     await page.getByRole('button', { name: 'Criar pedido' }).click()
     await expect(page).toHaveURL(/\/orders$/)
   })
 
   await test.step('o próximo pedido já abre com ele', async () => {
     await page.getByRole('link', { name: 'Novo pedido' }).click()
+    await page.getByRole('button', { name: 'Adicionar X-Burguer' }).click()
+    await page.getByRole('button', { name: 'Continuar' }).click()
     const trabalho = page.getByRole('radio', { name: /Trabalho/ })
     await expect(trabalho).toBeChecked()
     await expect(page.getByRole('radio', { name: /Casa/ })).not.toBeChecked()

@@ -1,5 +1,13 @@
 import { newUser } from '../support/api'
-import { CEPS, expect, fillAddress, loginViaUi, orderCard, test, ticketIn } from '../support/fixtures'
+import {
+  CEPS,
+  expect,
+  fillAddress,
+  loginViaUi,
+  orderCard,
+  test,
+  ticketIn,
+} from '../support/fixtures'
 
 // Sign-up takes no address: the first one is registered with the first order and becomes the
 // default, so the "sign-up with address" step is sign-up followed by that first order.
@@ -26,6 +34,13 @@ test('cadastro com endereço, login e pedido com dois itens aparece como Recebid
 
   const orderId = await test.step('primeiro pedido cadastra o endereço', async () => {
     await page.getByRole('link', { name: 'Novo pedido' }).click()
+    await page.getByRole('button', { name: 'Adicionar X-Burguer' }).click()
+    await page.getByRole('button', { name: 'Adicionar Batata frita' }).click()
+    await expect(
+      page.getByRole('list', { name: 'Itens do pedido' }).getByRole('listitem'),
+    ).toHaveCount(2)
+    await page.getByRole('button', { name: 'Continuar' }).click()
+
     await expect(page.getByLabel('Cliente')).toHaveValue(user.name)
     await fillAddress(
       page.getByRole('group', { name: 'Novo endereço' }),
@@ -33,17 +48,15 @@ test('cadastro com endereço, login e pedido com dois itens aparece como Recebid
       '1000',
       'Casa',
     )
-
-    await page.getByRole('button', { name: 'Adicionar X-Burguer' }).click()
-    await page.getByRole('button', { name: 'Adicionar Batata frita' }).click()
-    await expect(
-      page.getByRole('list', { name: 'Itens do pedido' }).getByRole('listitem'),
-    ).toHaveCount(2)
+    // Not saved with its own button: the order warns, then saves it.
+    await page.getByRole('button', { name: 'Criar pedido' }).click()
+    const warning = page.getByRole('alertdialog', { name: 'Endereço não salvo' })
+    await expect(warning).toBeVisible()
 
     const created = page.waitForResponse(
       (r) => r.request().method() === 'POST' && new URL(r.url()).pathname === '/api/orders',
     )
-    await page.getByRole('button', { name: 'Criar pedido' }).click()
+    await warning.getByRole('button', { name: 'Salvar e criar pedido' }).click()
     const response = await created
     expect(response.status()).toBe(201)
     return ((await response.json()) as { id: number }).id
@@ -66,10 +79,12 @@ test('cadastro com endereço, login e pedido com dois itens aparece como Recebid
 
   await test.step('o endereço do primeiro pedido vira o padrão', async () => {
     await page.getByRole('link', { name: 'Novo pedido' }).click()
+    await page.getByRole('button', { name: 'Adicionar X-Burguer' }).click()
+    await page.getByRole('button', { name: 'Continuar' }).click()
     const casa = page.getByRole('radio', { name: /Casa/ })
     await expect(casa).toBeChecked()
-    await expect(
-      page.locator('label.address-option', { has: casa }).locator('.badge'),
-    ).toHaveText('Padrão')
+    await expect(page.locator('label.address-option', { has: casa }).locator('.badge')).toHaveText(
+      'Padrão',
+    )
   })
 })

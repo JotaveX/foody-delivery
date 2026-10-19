@@ -1442,6 +1442,74 @@ select {
   min-width: 0;
 }
 
+/* Steps as a ticket header: "01 CARDÁPIO —— 02 ENTREGA", the current one in paper. */
+.order-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--on-counter-muted);
+}
+
+.order-steps li {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--counter-line);
+}
+
+.order-steps li + li {
+  margin-left: 32px;
+}
+
+.order-steps li + li::before {
+  content: '';
+  position: absolute;
+  right: calc(100% + 1px);
+  width: 32px;
+  border-top: 1.5px dashed var(--counter-line);
+}
+
+.order-steps li[aria-current='step'] {
+  border-color: var(--paper);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.order-step-number {
+  font-weight: 600;
+}
+
+.order-steps li[aria-current='step'] .order-step-number {
+  color: var(--brand-ink);
+}
+
+.step-back {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--on-counter-muted);
+}
+
+.step-back:hover {
+  color: var(--on-counter);
+}
+
+.section-head h2:focus {
+  outline: none;
+}
+
 .panel {
   display: flex;
   flex-direction: column;
@@ -1515,8 +1583,44 @@ select {
   outline-offset: 0;
 }
 
-.product-card-selected {
+.product-card:hover {
+  outline-color: var(--on-counter-muted);
+}
+
+.product-card-selected,
+.product-card-selected:hover {
   outline-color: var(--on-counter);
+}
+
+/* The whole card is the "add" button. */
+.product-card-button {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  color: inherit;
+  transition: transform 0.08s;
+}
+
+.product-card-button:active:not([aria-disabled='true']) {
+  transform: scale(0.98);
+}
+
+.product-card-button[aria-disabled='true'] {
+  cursor: not-allowed;
+}
+
+.product-card-button:focus-visible {
+  outline-offset: -5px;
+}
+
+.product-card-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .product-image {
@@ -1557,6 +1661,15 @@ select {
   font-family: var(--font-mono);
   font-size: 13px;
   font-weight: 600;
+  pointer-events: none;
+  animation: qty-stamp 0.22s ease-out;
+}
+
+/* Each click "stamps" the new quantity on the photo. */
+@keyframes qty-stamp {
+  from {
+    transform: scale(1.5);
+  }
 }
 
 .product-card-body {
@@ -1567,12 +1680,12 @@ select {
   gap: 4px;
 }
 
-.product-card-body h4 {
+.product-card-name {
   font-weight: 600;
   font-size: 16px;
 }
 
-.product-card-body p {
+.product-card-description {
   font-size: 13px;
   color: var(--ink-muted);
 }
@@ -1591,37 +1704,56 @@ select {
   font-size: 15px;
 }
 
-.stepper {
+.product-add {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brand-ink);
+}
+
+.product-card-button[aria-disabled='true'] .product-add {
+  color: var(--ink-muted);
+}
+
+/* Quantity controls on the ticket lines: the only place to lower or remove an item. */
+.cart-line-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.cart-stepper {
   display: inline-flex;
   align-items: center;
   border: 1.5px solid var(--ink);
 }
 
-.stepper button {
-  width: 40px;
-  height: 40px;
+.cart-stepper button {
+  width: 32px;
+  height: 32px;
   border: 0;
   background: transparent;
   font-family: var(--font-mono);
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 600;
 }
 
-.stepper button:hover:not(:disabled) {
+.cart-stepper button:hover:not(:disabled) {
   background: var(--ink);
   color: var(--paper);
 }
 
-.stepper button:disabled {
-  color: var(--ink-muted);
+.cart-stepper button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
-.stepper output {
-  min-width: 24px;
+.cart-stepper output {
+  min-width: 26px;
   text-align: center;
-  font-family: var(--font-mono);
   font-weight: 600;
 }
 
@@ -1693,11 +1825,17 @@ select {
 }
 
 .new-address-panel {
+  --outline: var(--on-counter);
+
   display: flex;
   flex-direction: column;
   gap: 16px;
   padding: 18px 0 0 18px;
   border-left: 2px solid var(--on-counter);
+}
+
+.new-address-save {
+  align-self: flex-start;
 }
 
 .new-address-panel h3 {
@@ -1737,7 +1875,7 @@ select {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
   max-height: 45vh;
   overflow-y: auto;
   font-family: var(--font-mono);
@@ -1775,10 +1913,16 @@ select {
   }
 
   /* Comes after the catalog in the DOM: sticks to the bottom of the screen while scrolling it. */
+  /* Edge to edge, like a bottom sheet (the margins cancel .app-main's side padding). */
   .cart-summary {
     top: auto;
     bottom: 0;
     z-index: 1;
+    margin: 0 -32px;
+  }
+
+  .cart-summary .ticket-meta {
+    display: none;
   }
 
   .cart-summary .tear {
@@ -1796,7 +1940,54 @@ select {
   }
 
   .cart-lines {
-    max-height: 5.5rem;
+    max-height: 7.5rem;
+  }
+
+  .cart-summary .field-hint {
+    display: none;
+  }
+
+  /* Only exists while it has items: slides up with the first, down after the last is removed. */
+  .cart-summary[data-presence='closed'] {
+    display: none;
+  }
+
+  .cart-summary[data-presence='open'] {
+    animation: cart-slide-up 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.15);
+  }
+
+  .cart-summary[data-presence='leaving'] {
+    animation: cart-slide-down 0.24s ease-in forwards;
+  }
+}
+
+@media (max-width: 640px) {
+  .cart-summary {
+    margin: 0 -16px;
+  }
+}
+
+@keyframes cart-slide-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes cart-slide-down {
+  to {
+    transform: translateY(110%);
+  }
+}
+
+/* Near-instant instead of none: the exit still needs its animationend to unmount. */
+@media (prefers-reduced-motion: reduce) {
+  .cart-summary,
+  .product-qty {
+    animation-duration: 1ms !important;
+  }
+
+  .product-card-button {
+    transition: none;
   }
 }
 

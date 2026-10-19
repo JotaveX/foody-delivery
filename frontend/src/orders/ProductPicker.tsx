@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { CATEGORIES, CATEGORY_LABEL } from '../catalog/categories'
 import type { Product, ProductCategory } from '../catalog/types'
 import { ProductImage } from '../components/ProductImage'
@@ -8,11 +8,11 @@ import { MAX_QUANTITY, type Cart } from './cart'
 interface ProductPickerProps {
   products: Product[]
   cart: Cart
-  onQuantityChange: (productId: number, quantity: number) => void
+  onAdd: (productId: number) => void
 }
 
-/** Catalog grid by category, with a quantity stepper on each product. */
-export function ProductPicker({ products, cart, onQuantityChange }: ProductPickerProps) {
+/** Catalog grid by category. Clicking a product adds one unit of it to the cart. */
+export function ProductPicker({ products, cart, onAdd }: ProductPickerProps) {
   const [selected, setSelected] = useState<ProductCategory | null>(null)
   const categories = CATEGORIES.filter((c) => products.some((p) => p.category === c))
   const shown = selected ? [selected] : categories
@@ -56,7 +56,7 @@ export function ProductPicker({ products, cart, onQuantityChange }: ProductPicke
                   key={product.id}
                   product={product}
                   quantity={cart.get(product.id) ?? 0}
-                  onQuantityChange={(quantity) => onQuantityChange(product.id, quantity)}
+                  onAdd={() => onAdd(product.id)}
                 />
               ))}
           </ul>
@@ -69,53 +69,54 @@ export function ProductPicker({ products, cart, onQuantityChange }: ProductPicke
 interface ProductCardProps {
   product: Product
   quantity: number
-  onQuantityChange: (quantity: number) => void
+  onAdd: () => void
 }
 
-function ProductCard({ product, quantity, onQuantityChange }: ProductCardProps) {
+/** The whole card adds one unit per click; lowering the quantity is done on the ticket. */
+function ProductCard({ product, quantity, onAdd }: ProductCardProps) {
+  const detailsId = useId()
+  const full = quantity >= MAX_QUANTITY
   return (
     <li
       className={`paper product-card${quantity > 0 ? ' product-card-selected' : ''}`}
       aria-label={product.name}
     >
-      <ProductImage
-        src={product.imageUrl}
-        alt=""
-        width={320}
-        height={240}
-        className="product-card-image"
-      />
+      <button
+        type="button"
+        className="product-card-button"
+        aria-label={`Adicionar ${product.name}`}
+        aria-describedby={detailsId}
+        aria-disabled={full}
+        onClick={() => {
+          if (!full) onAdd()
+        }}
+      >
+        <ProductImage
+          src={product.imageUrl}
+          alt=""
+          width={320}
+          height={240}
+          className="product-card-image"
+        />
+        <span id={detailsId} className="product-card-details">
+          <span className="product-card-body">
+            <span className="product-card-name">{product.name}</span>
+            <span className="product-card-description">{product.description}</span>
+          </span>
+          <span className="product-card-footer">
+            <span className="product-price">{formatBRL(product.price)}</span>
+            <span className="product-add" aria-hidden="true">
+              {full ? 'Máximo' : 'Adicionar'}
+            </span>
+          </span>
+        </span>
+      </button>
       {quantity > 0 && (
-        <span className="product-qty" aria-hidden="true">
-          {quantity}x
+        // Keyed by the quantity so every click replays the "stamp" animation.
+        <span key={quantity} className="product-qty">
+          {quantity}x<span className="sr-only"> no pedido</span>
         </span>
       )}
-      <div className="product-card-body">
-        <h4>{product.name}</h4>
-        <p>{product.description}</p>
-      </div>
-      <div className="product-card-footer">
-        <span className="product-price">{formatBRL(product.price)}</span>
-        <div className="stepper">
-          <button
-            type="button"
-            aria-label={`Diminuir ${product.name}`}
-            disabled={quantity === 0}
-            onClick={() => onQuantityChange(quantity - 1)}
-          >
-            −
-          </button>
-          <output aria-label={`Quantidade de ${product.name}`}>{quantity}</output>
-          <button
-            type="button"
-            aria-label={`Adicionar ${product.name}`}
-            disabled={quantity >= MAX_QUANTITY}
-            onClick={() => onQuantityChange(quantity + 1)}
-          >
-            +
-          </button>
-        </div>
-      </div>
     </li>
   )
 }
