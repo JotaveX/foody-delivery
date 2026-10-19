@@ -24,7 +24,8 @@ import org.testcontainers.containers.GenericContainer;
       "app.rate-limit.per-ip.register.capacity=100000",
       "app.rate-limit.per-ip.forgot-password.capacity=100000",
       "app.rate-limit.per-ip.reset-password.capacity=100000",
-      "app.rate-limit.per-user.capacity=100000"
+      "app.rate-limit.per-user.capacity=100000",
+      "app.rate-limit.login-failures-per-account.capacity=100000"
     })
 public abstract class IntegrationTest {
 

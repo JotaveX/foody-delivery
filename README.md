@@ -388,7 +388,7 @@ singletons. O Redis guarda:
 
 | Uso | Chave | Por quê |
 |---|---|---|
-| Rate limit (Bucket4j) | `rl:{regra}:{capacidade}:{período}:{ip\|usuário}` | O limite vale para o conjunto de instâncias, não para cada uma |
+| Rate limit (Bucket4j) | `rl:{regra}:{capacidade}:{período}:{ip\|usuário\|sha256(e-mail)}` | O limite vale para o conjunto de instâncias, não para cada uma |
 | Idempotência | `idem:{userId}:{key}` | A retentativa pode cair em outra instância |
 | Cache | `cache:order-details:{id}`, `cache:catalog:{categoria}` | Compartilhado e invalidado em um lugar só |
 | Pub/sub do WebSocket | canal `order-events` | O cliente pode estar conectado a outra instância que não a que processou a mudança |
@@ -455,9 +455,12 @@ Outros cuidados: login com e-mail inexistente também roda um BCrypt contra um h
 o tempo de resposta não revelar contas; a mensagem de erro é genérica; `forgot-password` responde
 sempre 204 e faz todo o trabalho, inclusive buscar a conta, fora da requisição, então o tempo de
 resposta é o mesmo para qualquer e-mail; rate limit por IP nas rotas públicas (login 5/min,
-cadastro 3/min, redefinição 3–5/min) e por usuário no resto (100/min). O `X-Forwarded-For` só é
-lido quando a conexão vem de um proxy listado em `RATE_LIMIT_TRUSTED_PROXIES` (o Caddy, em
-produção); senão qualquer cliente inventaria o próprio IP.
+cadastro 3/min, redefinição 3–5/min), por usuário no resto (100/min) e **10 logins errados por
+e-mail a cada 15 min, venham de qualquer IP**, contra credential stuffing distribuído. Só as falhas
+contam, e e-mails inexistentes também têm limite, para o 429 não revelar contas. Em troca, um
+atacante pode travar o login de uma conta por 15 min (a redefinição de senha continua
+funcionando). O `X-Forwarded-For` só é lido quando a conexão vem de um proxy listado em
+`RATE_LIMIT_TRUSTED_PROXIES` (o Caddy, em produção); senão qualquer cliente inventaria o próprio IP.
 
 O token fica no `localStorage` do navegador. É vulnerável a XSS, contra o que o front tem uma CSP
 restrita (`script-src 'self'`) no Pages; em troca, não há cookie e, portanto, não há CSRF.

@@ -3,6 +3,8 @@ package dev.jotave.foody.ratelimit;
 import dev.jotave.foody.ratelimit.RateLimitProperties.Limit;
 import io.github.bucket4j.BucketConfiguration;
 import io.github.bucket4j.ConsumptionProbe;
+import io.github.bucket4j.EstimationProbe;
+import io.github.bucket4j.distributed.BucketProxy;
 import io.github.bucket4j.distributed.proxy.ProxyManager;
 import org.springframework.stereotype.Component;
 
@@ -21,6 +23,15 @@ public class RateLimiter {
    * @param subject who is limited, e.g. a client IP or a user id
    */
   public ConsumptionProbe tryConsume(String name, String subject, Limit limit) {
+    return bucket(name, subject, limit).tryConsumeAndReturnRemaining(1);
+  }
+
+  /** Whether one more token could be taken now, without taking it. */
+  public EstimationProbe estimate(String name, String subject, Limit limit) {
+    return bucket(name, subject, limit).estimateAbilityToConsume(1);
+  }
+
+  private BucketProxy bucket(String name, String subject, Limit limit) {
     // The limit is part of the key, so changing it in application.yml takes effect at once
     // instead of reusing buckets created with the old configuration.
     String key =
@@ -30,6 +41,6 @@ public class RateLimiter {
             .addLimit(
                 l -> l.capacity(limit.capacity()).refillGreedy(limit.capacity(), limit.period()))
             .build();
-    return buckets.getProxy(key, () -> configuration).tryConsumeAndReturnRemaining(1);
+    return buckets.getProxy(key, () -> configuration);
   }
 }

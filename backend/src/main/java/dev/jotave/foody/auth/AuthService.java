@@ -19,6 +19,7 @@ public class AuthService {
   private final AddressService addressService;
   private final PasswordEncoder passwordEncoder;
   private final JwtService jwtService;
+  private final LoginAttemptLimiter loginAttempts;
 
   // Compared against when the e-mail is unknown, so both failure paths cost one BCrypt check
   // and response timing does not reveal which e-mails are registered.
@@ -28,11 +29,13 @@ public class AuthService {
       UserRepository users,
       AddressService addressService,
       PasswordEncoder passwordEncoder,
-      JwtService jwtService) {
+      JwtService jwtService,
+      LoginAttemptLimiter loginAttempts) {
     this.users = users;
     this.addressService = addressService;
     this.passwordEncoder = passwordEncoder;
     this.jwtService = jwtService;
+    this.loginAttempts = loginAttempts;
     this.dummyHash = passwordEncoder.encode("dummy-password-for-timing");
   }
 
@@ -57,10 +60,16 @@ public class AuthService {
 
   @Transactional(readOnly = true)
   public LoginResponse login(LoginRequest request) {
-    Optional<User> found = users.findByEmail(normalizeEmail(request.email()));
+    String email = normalizeEmail(request.email());
+    loginAttempts.checkAllowed(email);
+    Optional<User> found = users.findByEmail(email);
     String hash = found.map(User::getPasswordHash).orElse(dummyHash);
     boolean matches = passwordEncoder.matches(request.password(), hash);
-    User user = found.filter(u -> matches).orElseThrow(InvalidCredentialsException::new);
+    if (!matches || found.isEmpty()) {
+      loginAttempts.recordFailure(email);
+      throw new InvalidCredentialsException();
+    }
+    User user = found.get();
 
     var issued = jwtService.issue(user.getId(), user.getTokenVersion());
     return new LoginResponse(issued.token(), issued.expiresInSeconds(), toResponse(user));

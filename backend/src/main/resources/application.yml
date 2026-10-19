@@ -113,6 +113,11 @@ app:
     per-user:
       capacity: 100
       period: 1m
+    # Failed logins per e-mail, from any IP: the per-IP limit alone does not stop credential
+    # stuffing spread over many addresses. Counted for unknown e-mails too, so a 429 reveals nothing.
+    login-failures-per-account:
+      capacity: 10
+      period: 15m
 
 management:
   endpoints:

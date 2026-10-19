@@ -27,13 +27,15 @@ import org.springframework.test.context.TestPropertySource;
       "app.rate-limit.trusted-proxies=127.0.0.1,::1",
       "app.rate-limit.per-ip.login.capacity=5",
       "app.rate-limit.per-ip.register.capacity=3",
-      "app.rate-limit.per-user.capacity=5"
+      "app.rate-limit.per-user.capacity=5",
+      "app.rate-limit.login-failures-per-account.capacity=8"
     })
 class RateLimitIT extends IntegrationTest {
 
   private static final ParameterizedTypeReference<Map<String, Object>> JSON =
       new ParameterizedTypeReference<>() {};
   private static final AtomicInteger NEXT_IP = new AtomicInteger(1);
+  private static final String PASSWORD = "s3nha-segura";
 
   @Autowired private TestRestTemplate http;
 
@@ -64,6 +66,36 @@ class RateLimitIT extends IntegrationTest {
     // Another client is not affected.
     assertThat(login(uniqueIp(), "nobody@example.com").getStatusCode())
         .isEqualTo(HttpStatus.UNAUTHORIZED);
+  }
+
+  @Test
+  void failedLoginsAreLimitedPerAccountAcrossIps() {
+    String email = uniqueEmail();
+    register(uniqueIp(), email);
+    for (int attempt = 1; attempt <= 8; attempt++) {
+      // A fresh IP each time: the per-IP limit never kicks in.
+      assertThat(login(uniqueIp(), email, "senha-errada").getStatusCode())
+          .isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    ResponseEntity<Map<String, Object>> limited = login(uniqueIp(), email, PASSWORD);
+
+    // Even the right password waits: otherwise the 9th guess would still be tested.
+    assertThat(limited.getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+    assertThat(Long.parseLong(limited.getHeaders().getFirst(HttpHeaders.RETRY_AFTER))).isPositive();
+    assertThat((String) limited.getBody().get("detail"))
+        .startsWith("Muitas tentativas de login para este e-mail.");
+    // Unknown e-mails are limited the same way, so a 429 does not reveal accounts.
+    String unknown = uniqueEmail();
+    for (int attempt = 1; attempt <= 8; attempt++) {
+      login(uniqueIp(), unknown, PASSWORD);
+    }
+    assertThat(login(uniqueIp(), unknown, PASSWORD).getStatusCode())
+        .isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+    // Other accounts are not affected.
+    String other = uniqueEmail();
+    register(uniqueIp(), other);
+    assertThat(login(uniqueIp(), other, PASSWORD).getStatusCode()).isEqualTo(HttpStatus.OK);
   }
 
   @Test
@@ -99,19 +131,24 @@ class RateLimitIT extends IntegrationTest {
   }
 
   private ResponseEntity<Map<String, Object>> login(String ip, String email) {
-    return post("/auth/login", ip, Map.of("email", email, "password", "senha-errada"));
+    return login(ip, email, "senha-errada");
+  }
+
+  private ResponseEntity<Map<String, Object>> login(String ip, String email, String password) {
+    return post("/auth/login", ip, Map.of("email", email, "password", password));
   }
 
   private ResponseEntity<Map<String, Object>> register(String ip) {
-    Map<String, Object> body =
-        Map.of(
-            "name",
-            "Maria Silva",
-            "email",
-            "user-" + UUID.randomUUID() + "@example.com",
-            "password",
-            "s3nha-segura");
+    return register(ip, uniqueEmail());
+  }
+
+  private ResponseEntity<Map<String, Object>> register(String ip, String email) {
+    Map<String, Object> body = Map.of("name", "Maria Silva", "email", email, "password", PASSWORD);
     return post("/auth/register", ip, body);
+  }
+
+  private static String uniqueEmail() {
+    return "user-" + UUID.randomUUID() + "@example.com";
   }
 
   private ResponseEntity<Map<String, Object>> post(String url, String ip, Object body) {

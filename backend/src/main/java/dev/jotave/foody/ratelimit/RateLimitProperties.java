@@ -13,10 +13,15 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *     {@link ClientIpResolver}
  * @param perIp limits keyed by client IP for specific public paths (the map key names the bucket)
  * @param perUser general limit for every authenticated request, keyed by user id
+ * @param loginFailuresPerAccount failed logins per e-mail, whatever the client IP
  */
 @ConfigurationProperties("app.rate-limit")
 public record RateLimitProperties(
-    boolean enabled, List<String> trustedProxies, Map<String, PathLimit> perIp, Limit perUser) {
+    boolean enabled,
+    List<String> trustedProxies,
+    Map<String, PathLimit> perIp,
+    Limit perUser,
+    Limit loginFailuresPerAccount) {
 
   public RateLimitProperties {
     trustedProxies =
