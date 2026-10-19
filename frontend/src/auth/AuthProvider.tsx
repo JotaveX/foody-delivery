@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
-import { api, setUnauthorizedHandler } from '../api/client'
+import { api, LOGIN_PATH, setUnauthorizedHandler } from '../api/client'
 import { AuthContext, type AuthContextValue } from './context'
 import { clearSession, readSession, writeSession } from './session'
 import type { LoginResponse, RegisterInput, Session, User } from './types'
+
+const MAX_TIMEOUT_MS = 2 ** 31 - 1
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(readSession)
@@ -19,6 +21,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUnauthorizedHandler(logout)
     return () => setUnauthorizedHandler(null)
   }, [logout])
+
+  // The JWT is not refreshed: end the session when it expires instead of letting every request
+  // fail. setTimeout caps delays at ~24.8 days, far above the token lifetime.
+  const expiresAt = session?.expiresAt
+  useEffect(() => {
+    if (expiresAt === undefined) return
+    const timer = setTimeout(logout, Math.min(expiresAt - Date.now(), MAX_TIMEOUT_MS))
+    return () => clearTimeout(timer)
+  }, [expiresAt, logout])
 
   /** Reloads the current user (e.g. after the default address changed). */
   const refreshUser = useCallback(async () => {
@@ -39,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [hasSession])
 
   const login = useCallback(async (email: string, password: string) => {
-    const { data } = await api.post<LoginResponse>('/auth/login', { email, password })
+    const { data } = await api.post<LoginResponse>(LOGIN_PATH, { email, password })
     const next: Session = {
       token: data.token,
       expiresAt: Date.now() + data.expiresIn * 1000,

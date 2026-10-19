@@ -37,6 +37,17 @@ describe('protected routes', () => {
     expect(localStorage.getItem('foody.session')).toBeNull()
   })
 
+  it('end the session when the token expires while the app is open', async () => {
+    server.use(http.get('/api/auth/me', () => HttpResponse.json(fixtureUser)))
+    storeSession({ expiresAt: Date.now() + 300 })
+
+    renderApp('/')
+
+    expect(await screen.findByRole('heading', { name: 'Pedidos' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Identifique-se' })).toBeInTheDocument()
+    expect(localStorage.getItem('foody.session')).toBeNull()
+  })
+
   it('log out from the header', async () => {
     server.use(http.get('/api/auth/me', () => HttpResponse.json(fixtureUser)))
     storeSession()

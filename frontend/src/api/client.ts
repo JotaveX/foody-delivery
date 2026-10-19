@@ -4,6 +4,8 @@ import { apiUrl } from './endpoints'
 
 export const api = axios.create({ baseURL: apiUrl() })
 
+export const LOGIN_PATH = '/auth/login'
+
 let onUnauthorized: (() => void) | null = null
 
 /** Registered by the AuthProvider: clears the session and sends the user to /login. */
@@ -22,9 +24,10 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Only a rejected token ends the session; a 401 from the login form is just bad credentials.
-    const sentToken = Boolean(error?.config?.headers?.Authorization)
-    if (axios.isAxiosError(error) && error.response?.status === 401 && sentToken) {
+    // A 401 from the login form is just bad credentials. Any other 401 means the session is gone:
+    // the token was rejected, or it expired and readSession dropped it before the request.
+    const isLogin = error?.config?.url === LOGIN_PATH
+    if (axios.isAxiosError(error) && error.response?.status === 401 && !isLogin) {
       onUnauthorized?.()
     }
     return Promise.reject(error)
