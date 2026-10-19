@@ -113,8 +113,6 @@ npm run report                  # abre o último relatório HTML
 
 Requer `docker compose up -d redis mailpit`, o backend com `RATE_LIMIT_ENABLED=false ./mvnw spring-boot:run` (o `globalSetup` recusa rodar com rate limit) e `npm run dev` no front. `E2E_FRONT_PORT` muda a porta do front (default 5173).
 
-A suíte roda com 1 worker: cadastros simultâneos hoje falham com `SQLITE_BUSY` (409).
-
 ### Serviços locais (`docker-compose.yml` na raiz)
 
 ```bash
@@ -148,7 +146,7 @@ Se o `spotless:check` falhar, rode `./mvnw spotless:apply` em `backend/`. O `goo
 ## Backend: notas de configuração
 
 - Spring Boot 3.5.x, `groupId` `dev.jotave.foody`, pacote raiz `dev.jotave.foody`.
-- SQLite em `./data/tracker.db` (sobrescrevível com `SQLITE_PATH`); os PRAGMAs `journal_mode=WAL`, `busy_timeout=5000` e `foreign_keys=true` vão na URL JDBC e são aplicados a cada conexão. `SqliteDirectoryInitializer` cria o diretório do arquivo.
+- SQLite em `./data/tracker.db` (sobrescrevível com `SQLITE_PATH`); os PRAGMAs `journal_mode=WAL`, `busy_timeout=5000` e `foreign_keys=true` vão na URL JDBC e são aplicados a cada conexão. `SqliteDirectoryInitializer` cria o diretório do arquivo. Transações de escrita começam com `BEGIN IMMEDIATE` e as `readOnly` com `DEFERRED` (`persistence/SqliteTransactionModeConfig`, proxy do DataSource; não ponha `transaction_mode` na URL, porque o `commit()` do sqlite-jdbc reabre a transação no mesmo modo).
 - Perfis: `dev` é o default (defaults locais para segredos, SMTP no Mailpit); `prod` exige `JWT_SECRET`, `RESEND_API_KEY`, `MAIL_FROM` etc. via variáveis de ambiente e loga em JSON. Nenhum perfil acessa o GCS: as imagens do catálogo são lidas da URL pública do bucket, e a VM não tem papel nele.
 - Actuator expõe só `health`, com `/actuator/health/liveness` e `/actuator/health/readiness` (readiness inclui Redis).
 - `CorrelationIdFilter` propaga `X-Correlation-Id` (MDC `correlationId`).

@@ -370,11 +370,16 @@ valem para toda conexão.
 
 O preço é que **existe um único escritor por vez, num único processo com o arquivo local**. É o
 único ponto que impede escalar horizontalmente, e foi aceito de propósito: todo o resto já está
-pronto para várias instâncias. Limitação conhecida: as transações começam em modo `DEFERRED`, e
-quando duas transações que leram antes de escrever disputam o lock, a segunda recebe
-`SQLITE_BUSY` na hora, sem esperar o `busy_timeout`; a API devolve **409** e o cliente pode
-tentar de novo. Por isso a suíte E2E roda com 1 worker. A correção é abrir as transações de
-escrita com `BEGIN IMMEDIATE`.
+pronto para várias instâncias.
+
+As transações de escrita começam com `BEGIN IMMEDIATE`: no modo padrão (`DEFERRED`) o lock de
+escrita só é pedido na primeira escrita, e uma transação que já leu não consegue esperar por ele:
+recebe `SQLITE_BUSY` na hora, sem `busy_timeout`. Bastavam dois cadastros simultâneos para um falhar.
+Com `IMMEDIATE` o lock é pedido no `BEGIN`, onde o `busy_timeout` vale, e os escritores fazem fila.
+As transações `readOnly` continuam `DEFERRED`, lendo em paralelo. O modo não vai na URL JDBC
+porque o sqlite-jdbc abre a próxima transação dentro do próprio `commit()`: com `IMMEDIATE`
+global, cada commit pegaria o lock de novo. Por isso um proxy do DataSource
+(`persistence/SqliteTransactionModeConfig`) troca o modo a cada transação.
 
 ### Redis com todo o estado efêmero: aplicação stateless
 
