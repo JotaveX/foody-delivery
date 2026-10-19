@@ -78,7 +78,7 @@ public class AuthService {
   @Transactional(readOnly = true)
   public UserResponse me(long userId) {
     // The JWT filter already checked the user exists; a concurrent delete is the only way here.
-    User user = users.findById(userId).orElseThrow(InvalidCredentialsException::new);
+    User user = users.findById(userId).orElseThrow(InvalidSessionException::new);
     return toResponse(user);
   }
 

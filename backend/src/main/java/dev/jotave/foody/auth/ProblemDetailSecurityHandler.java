@@ -30,7 +30,7 @@ public class ProblemDetailSecurityHandler implements AuthenticationEntryPoint, A
       throws IOException {
     String detail =
         request.getAttribute(JwtAuthenticationFilter.INVALID_TOKEN_ATTRIBUTE) != null
-            ? "Token inválido ou expirado. Faça login novamente."
+            ? InvalidSessionException.DETAIL
             : "Autenticação necessária.";
     write(request, response, HttpStatus.UNAUTHORIZED, detail);
   }
