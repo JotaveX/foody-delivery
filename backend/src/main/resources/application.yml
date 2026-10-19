@@ -81,6 +81,10 @@ app:
   idempotency:
     # How long a POST /orders Idempotency-Key is remembered (in progress or completed).
     ttl: 24h
+  realtime:
+    # How often open WebSocket sessions are checked for an expired or revoked token: the most a
+    # session keeps receiving updates after logout-everywhere (password reset) or expiry.
+    session-check-interval: 30s
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}
     # Reverse proxies (IPs or CIDRs, comma-separated) whose X-Forwarded-For is trusted to find

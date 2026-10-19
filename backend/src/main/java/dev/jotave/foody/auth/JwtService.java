@@ -65,11 +65,12 @@ public class JwtService {
             .parseSignedClaims(token)
             .getPayload();
     Integer tokenVersion = claims.get(TOKEN_VERSION_CLAIM, Integer.class);
-    if (claims.getSubject() == null || tokenVersion == null) {
+    if (claims.getSubject() == null || tokenVersion == null || claims.getExpiration() == null) {
       throw new MalformedClaimsException();
     }
     try {
-      return new TokenClaims(Long.parseLong(claims.getSubject()), tokenVersion);
+      return new TokenClaims(
+          Long.parseLong(claims.getSubject()), tokenVersion, claims.getExpiration().toInstant());
     } catch (NumberFormatException e) {
       throw new MalformedClaimsException();
     }
@@ -77,7 +78,7 @@ public class JwtService {
 
   public record IssuedToken(String token, long expiresInSeconds) {}
 
-  public record TokenClaims(long userId, int tokenVersion) {}
+  public record TokenClaims(long userId, int tokenVersion, Instant expiresAt) {}
 
   static class MalformedClaimsException extends JwtException {
     MalformedClaimsException() {

@@ -40,21 +40,28 @@ public class TokenAuthenticator {
 
   /** Empty if the token is invalid, expired or was revoked by a token_version bump. */
   public Optional<Authentication> authenticate(String token) {
+    return verify(token)
+        .<Authentication>map(
+            claims ->
+                UsernamePasswordAuthenticationToken.authenticated(
+                    new AuthenticatedUser(claims.userId()), null, List.of()));
+  }
+
+  /** The claims of a token that is validly signed, not expired and not revoked. */
+  public Optional<JwtService.TokenClaims> verify(String token) {
     try {
       JwtService.TokenClaims claims = jwtService.parse(token);
-      boolean current =
-          users
-              .findTokenVersionById(claims.userId())
-              .map(version -> version == claims.tokenVersion())
-              .orElse(false);
-      if (!current) {
-        return Optional.empty();
-      }
-      return Optional.of(
-          UsernamePasswordAuthenticationToken.authenticated(
-              new AuthenticatedUser(claims.userId()), null, List.of()));
+      return isRevoked(claims) ? Optional.empty() : Optional.of(claims);
     } catch (JwtException | IllegalArgumentException e) {
       return Optional.empty();
     }
+  }
+
+  /** True once the user's token_version moved past the token's (or the user is gone). */
+  public boolean isRevoked(JwtService.TokenClaims claims) {
+    return users
+        .findTokenVersionById(claims.userId())
+        .map(version -> version != claims.tokenVersion())
+        .orElse(true);
   }
 }

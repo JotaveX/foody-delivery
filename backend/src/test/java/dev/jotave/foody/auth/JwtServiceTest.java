@@ -23,7 +23,11 @@ class JwtServiceTest {
     JwtService.IssuedToken issued = jwt.issue(42L, 3);
 
     assertThat(issued.expiresInSeconds()).isEqualTo(7200);
-    assertThat(jwt.parse(issued.token())).isEqualTo(new JwtService.TokenClaims(42L, 3));
+    JwtService.TokenClaims claims = jwt.parse(issued.token());
+    assertThat(claims.userId()).isEqualTo(42L);
+    assertThat(claims.tokenVersion()).isEqualTo(3);
+    assertThat(claims.expiresAt())
+        .isBetween(Instant.now().plusSeconds(7190), Instant.now().plusSeconds(7201));
   }
 
   @Test

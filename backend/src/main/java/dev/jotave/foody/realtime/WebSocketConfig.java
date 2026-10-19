@@ -7,6 +7,7 @@ import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
 
 /**
  * STOMP over a plain WebSocket at {@code /ws}, with Spring's in-memory simple broker on {@code
@@ -20,10 +21,15 @@ class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
   static final String TOPIC_PREFIX = "/topic";
 
   private final StompAuthInterceptor stompAuthInterceptor;
+  private final StompSessionGuard sessionGuard;
   private final CorsProperties corsProperties;
 
-  WebSocketConfig(StompAuthInterceptor stompAuthInterceptor, CorsProperties corsProperties) {
+  WebSocketConfig(
+      StompAuthInterceptor stompAuthInterceptor,
+      StompSessionGuard sessionGuard,
+      CorsProperties corsProperties) {
     this.stompAuthInterceptor = stompAuthInterceptor;
+    this.sessionGuard = sessionGuard;
     this.corsProperties = corsProperties;
   }
 
@@ -42,6 +48,11 @@ class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
   @Override
   public void configureMessageBroker(MessageBrokerRegistry registry) {
     registry.enableSimpleBroker(TOPIC_PREFIX);
+  }
+
+  @Override
+  public void configureWebSocketTransport(WebSocketTransportRegistration registration) {
+    registration.addDecoratorFactory(sessionGuard);
   }
 
   @Override

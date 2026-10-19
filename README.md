@@ -494,6 +494,12 @@ handshake é aberto, e o JWT vai no header `Authorization` do frame STOMP `CONNE
 para ninguém publicar atualizações forjadas no broker. O `Origin` do handshake é conferido contra
 as mesmas origens do CORS.
 
+Como o token só é conferido no `CONNECT`, um socket aberto sobreviveria a ele. O
+`StompSessionGuard` guarda as sessões abertas da instância e, a cada 30s
+(`app.realtime.session-check-interval`), fecha as que têm o token expirado ou revogado por
+`token_version`. Uma troca de senha corta os sockets abertos em até 30s, e não só as próximas
+requisições.
+
 O front grava cada mensagem direto no cache do TanStack Query (detalhe e páginas da lista), sem
 refazer a busca; enquanto o socket está caído, as consultas voltam a fazer polling a cada 15s, e
 ao reconectar o front recarrega tudo uma vez para recuperar o que perdeu.
