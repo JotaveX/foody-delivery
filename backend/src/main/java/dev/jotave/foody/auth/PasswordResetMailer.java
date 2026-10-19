@@ -10,12 +10,14 @@ import java.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StreamUtils;
 import org.springframework.web.util.HtmlUtils;
 
-/** Writes and sends the reset e-mail off the request thread (see {@code mail.MailConfig}). */
+/**
+ * Writes and sends the reset e-mail. Called on {@code mailExecutor} by {@link
+ * PasswordResetService}, never on the request thread.
+ */
 @Component
 public class PasswordResetMailer {
 
@@ -39,7 +41,6 @@ public class PasswordResetMailer {
   /**
    * @param tokenHash identifies this link: a retry of the same send is not delivered twice
    */
-  @Async("mailExecutor")
   public void send(String to, String name, String link, Duration ttl, String tokenHash) {
     String subject = "Redefinição de senha da sua conta Foody";
     long minutes = ttl.toMinutes();

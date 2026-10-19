@@ -453,7 +453,8 @@ validação (`TokenAuthenticator`) serve o HTTP e o WebSocket.
 
 Outros cuidados: login com e-mail inexistente também roda um BCrypt contra um hash fictício, para
 o tempo de resposta não revelar contas; a mensagem de erro é genérica; `forgot-password` responde
-sempre 204 e envia o e-mail fora da requisição; rate limit por IP nas rotas públicas (login 5/min,
+sempre 204 e faz todo o trabalho, inclusive buscar a conta, fora da requisição, então o tempo de
+resposta é o mesmo para qualquer e-mail; rate limit por IP nas rotas públicas (login 5/min,
 cadastro 3/min, redefinição 3–5/min) e por usuário no resto (100/min). O `X-Forwarded-For` só é
 lido quando a conexão vem de um proxy listado em `RATE_LIMIT_TRUSTED_PROXIES` (o Caddy, em
 produção); senão qualquer cliente inventaria o próprio IP.
