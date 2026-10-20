@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router'
-import { NotFoundTicket } from '../components/NotFoundTicket'
-import { HAPPY_PATH, STATUS_LABEL } from '../orders/status'
+import { NotFoundTicket } from '@/shared/components/ui/NotFoundTicket'
+import { HAPPY_PATH, STATUS_LABEL } from '@/features/order'
 
 /** Any unknown URL. Lives outside the authenticated layout: it works logged in or out. */
 export function NotFoundPage() {

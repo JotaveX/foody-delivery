@@ -1,9 +1,9 @@
 import { screen } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
-import { user as fixtureUser } from '../test/fixtures'
-import { renderApp } from '../test/renderApp'
-import { server } from '../test/server'
+import { user as fixtureUser } from '@/test/fixtures'
+import { renderApp } from '@/test/renderApp'
+import { server } from '@/test/server'
 
 describe('LoginPage', () => {
   it('validates the fields before calling the API', async () => {

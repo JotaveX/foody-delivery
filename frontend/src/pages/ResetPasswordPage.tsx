@@ -3,12 +3,10 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { z } from 'zod'
-import { toApiError } from '../api/problem'
-import { resetPassword } from '../auth/passwordReset'
-import { passwordSchema } from '../auth/passwordSchema'
-import { AuthCard } from '../components/AuthCard'
-import { Field } from '../components/Field'
-import { FormAlert } from '../components/FormAlert'
+import { AuthCard, passwordSchema, useResetPassword } from '@/features/auth'
+import { Field } from '@/shared/components/ui/Field'
+import { FormAlert } from '@/shared/components/ui/FormAlert'
+import { toApiError } from '@/shared/lib/api/problem'
 
 const resetSchema = z
   .object({
@@ -28,6 +26,7 @@ export function ResetPasswordPage() {
   // Read once: the token is then dropped from the address bar (history, screenshots, Referer).
   const [token] = useState(() => searchParams.get('token'))
   const [apiError, setApiError] = useState<string | null>(null)
+  const reset = useResetPassword()
   const {
     register,
     handleSubmit,
@@ -57,7 +56,7 @@ export function ResetPasswordPage() {
   const onSubmit = handleSubmit(async ({ password }) => {
     setApiError(null)
     try {
-      await resetPassword(token, password)
+      await reset.mutateAsync({ token, password })
       navigate('/login', {
         replace: true,
         state: { notice: 'Senha redefinida. Entre com a nova senha.' },

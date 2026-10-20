@@ -3,11 +3,10 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link } from 'react-router'
 import { z } from 'zod'
-import { toApiError } from '../api/problem'
-import { requestPasswordReset } from '../auth/passwordReset'
-import { AuthCard } from '../components/AuthCard'
-import { Field } from '../components/Field'
-import { FormAlert } from '../components/FormAlert'
+import { AuthCard, useRequestPasswordReset } from '@/features/auth'
+import { Field } from '@/shared/components/ui/Field'
+import { FormAlert } from '@/shared/components/ui/FormAlert'
+import { toApiError } from '@/shared/lib/api/problem'
 
 const forgotSchema = z.object({
   email: z.string().trim().pipe(z.email('Informe um e-mail válido.')),
@@ -18,6 +17,7 @@ type ForgotForm = z.infer<typeof forgotSchema>
 export function ForgotPasswordPage() {
   const [apiError, setApiError] = useState<string | null>(null)
   const [sent, setSent] = useState(false)
+  const requestReset = useRequestPasswordReset()
   const {
     register,
     handleSubmit,
@@ -27,7 +27,7 @@ export function ForgotPasswordPage() {
   const onSubmit = handleSubmit(async ({ email }) => {
     setApiError(null)
     try {
-      await requestPasswordReset(email)
+      await requestReset.mutateAsync(email)
       setSent(true)
     } catch (error) {
       setApiError(toApiError(error).message)

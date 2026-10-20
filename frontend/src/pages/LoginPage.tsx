@@ -3,11 +3,10 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 import { z } from 'zod'
-import { toApiError } from '../api/problem'
-import { useAuth } from '../auth/useAuth'
-import { AuthCard } from '../components/AuthCard'
-import { Field } from '../components/Field'
-import { FormAlert } from '../components/FormAlert'
+import { toApiError } from '@/shared/lib/api/problem'
+import { useAuth, AuthCard } from '@/features/auth'
+import { Field } from '@/shared/components/ui/Field'
+import { FormAlert } from '@/shared/components/ui/FormAlert'
 
 const loginSchema = z.object({
   email: z.string().trim().pipe(z.email('Informe um e-mail válido.')),

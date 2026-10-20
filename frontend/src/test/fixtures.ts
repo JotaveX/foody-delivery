@@ -1,4 +1,5 @@
-import type { Session, User } from '../auth/types'
+import type { Session } from '@/shared/types/session'
+import type { User } from '@/shared/types/user'
 
 export const user: User = {
   id: 1,

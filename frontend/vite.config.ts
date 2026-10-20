@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
 
@@ -6,6 +7,8 @@ const backend = process.env.BACKEND_URL ?? 'http://localhost:8080'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  // Mirrors "paths" in tsconfig.app.json.
+  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   server: {
     // Same routing as production (Caddy): the API lives under /api and WebSockets under /ws.
     proxy: {

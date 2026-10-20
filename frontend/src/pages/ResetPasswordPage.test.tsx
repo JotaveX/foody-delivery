@@ -1,8 +1,8 @@
 import { screen } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
-import { renderApp } from '../test/renderApp'
-import { server } from '../test/server'
+import { renderApp } from '@/test/renderApp'
+import { server } from '@/test/server'
 
 describe('ResetPasswordPage', () => {
   it('asks for a new link when the token is missing', () => {

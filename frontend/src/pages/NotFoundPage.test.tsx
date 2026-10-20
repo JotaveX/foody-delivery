@@ -1,6 +1,6 @@
 import { screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { renderApp } from '../test/renderApp'
+import { renderApp } from '@/test/renderApp'
 
 describe('NotFoundPage', () => {
   it('shows the unknown address and a way back, without logging in', async () => {

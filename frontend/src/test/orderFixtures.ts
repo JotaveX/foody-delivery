@@ -1,4 +1,4 @@
-import type { Product } from '../catalog/types'
+import type { Product } from '@/features/catalog'
 import type {
   HistoryEntry,
   OrderDetail,
@@ -6,7 +6,7 @@ import type {
   OrderStatus,
   OrderSummary,
   Page,
-} from '../orders/types'
+} from '@/features/order'
 
 const IMAGES = 'https://storage.googleapis.com/foody-test/catalog'
 

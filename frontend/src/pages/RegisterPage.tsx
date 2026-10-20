@@ -3,12 +3,10 @@ import { useState } from 'react'
 import { useForm, type Path } from 'react-hook-form'
 import { Link, Navigate, useNavigate } from 'react-router'
 import { z } from 'zod'
-import { toApiError } from '../api/problem'
-import { passwordSchema } from '../auth/passwordSchema'
-import { useAuth } from '../auth/useAuth'
-import { AuthCard } from '../components/AuthCard'
-import { Field } from '../components/Field'
-import { FormAlert } from '../components/FormAlert'
+import { toApiError } from '@/shared/lib/api/problem'
+import { passwordSchema, useAuth, AuthCard } from '@/features/auth'
+import { Field } from '@/shared/components/ui/Field'
+import { FormAlert } from '@/shared/components/ui/FormAlert'
 
 const registerSchema = z
   .object({
