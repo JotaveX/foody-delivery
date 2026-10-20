@@ -23,6 +23,7 @@ export function storeSession(overrides: Partial<Session> = {}) {
   const session: Session = {
     token: 'valid-token',
     expiresAt: Date.now() + 60 * 60 * 1000,
+    refreshExpiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
     user,
     ...overrides,
   }

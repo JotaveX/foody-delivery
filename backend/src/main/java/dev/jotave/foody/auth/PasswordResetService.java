@@ -2,12 +2,6 @@ package dev.jotave.foody.auth;
 
 import dev.jotave.foody.user.User;
 import dev.jotave.foody.user.UserRepository;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
-import java.util.Base64;
-import java.util.HexFormat;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +30,6 @@ public class PasswordResetService {
 
   private static final String TOKEN_PREFIX = "pwreset:";
   private static final String COOLDOWN_PREFIX = "pwreset-cooldown:";
-  private static final int TOKEN_BYTES = 32;
 
   private final UserRepository users;
   private final StringRedisTemplate redis;
@@ -44,7 +37,6 @@ public class PasswordResetService {
   private final PasswordResetMailer mailer;
   private final PasswordResetProperties properties;
   private final TaskExecutor mailExecutor;
-  private final SecureRandom random = new SecureRandom();
 
   public PasswordResetService(
       UserRepository users,
@@ -91,8 +83,8 @@ public class PasswordResetService {
         return;
       }
 
-      String token = newToken();
-      String tokenHash = sha256(token);
+      String token = OpaqueTokens.generate();
+      String tokenHash = OpaqueTokens.sha256(token);
       redis
           .opsForValue()
           .set(
@@ -113,7 +105,7 @@ public class PasswordResetService {
 
   @Transactional
   public void reset(String token, String newPassword) {
-    String stored = redis.opsForValue().getAndDelete(TOKEN_PREFIX + sha256(token));
+    String stored = redis.opsForValue().getAndDelete(TOKEN_PREFIX + OpaqueTokens.sha256(token));
     if (stored == null) {
       throw new InvalidPasswordResetTokenException();
     }
@@ -127,21 +119,5 @@ public class PasswordResetService {
             .filter(u -> u.getTokenVersion() == tokenVersion)
             .orElseThrow(InvalidPasswordResetTokenException::new);
     user.changePassword(passwordEncoder.encode(newPassword));
-  }
-
-  private String newToken() {
-    byte[] bytes = new byte[TOKEN_BYTES];
-    random.nextBytes(bytes);
-    return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-  }
-
-  private static String sha256(String value) {
-    try {
-      byte[] digest =
-          MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
-      return HexFormat.of().formatHex(digest);
-    } catch (NoSuchAlgorithmException e) {
-      throw new IllegalStateException(e);
-    }
   }
 }

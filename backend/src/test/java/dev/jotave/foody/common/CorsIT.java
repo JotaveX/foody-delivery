@@ -32,7 +32,8 @@ class CorsIT extends IntegrationTest {
     assertThat(headers.getAccessControlAllowHeaders())
         .map(String::toLowerCase)
         .contains("authorization", "content-type", "idempotency-key");
-    assertThat(headers.getAccessControlAllowCredentials()).isFalse();
+    // For the refresh token cookie.
+    assertThat(headers.getAccessControlAllowCredentials()).isTrue();
   }
 
   @Test

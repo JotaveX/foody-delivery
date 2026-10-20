@@ -3,7 +3,6 @@ import type { RegisterInput, User } from './types'
 
 export interface AuthContextValue {
   user: User | null
-  token: string | null
   isAuthenticated: boolean
   login: (email: string, password: string) => Promise<void>
   register: (input: RegisterInput) => Promise<void>

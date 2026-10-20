@@ -43,7 +43,12 @@ describe('RegisterPage', () => {
         return HttpResponse.json(fixtureUser, { status: 201 })
       }),
       http.post('/api/auth/login', () =>
-        HttpResponse.json({ token: 'jwt', expiresIn: 7200, user: fixtureUser }),
+        HttpResponse.json({
+          token: 'jwt',
+          expiresIn: 7200,
+          refreshExpiresIn: 604800,
+          user: fixtureUser,
+        }),
       ),
       http.get('/api/auth/me', () => HttpResponse.json(fixtureUser)),
     )

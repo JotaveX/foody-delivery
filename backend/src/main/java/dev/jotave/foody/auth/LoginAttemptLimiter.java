@@ -4,10 +4,6 @@ import dev.jotave.foody.ratelimit.RateLimitProperties;
 import dev.jotave.foody.ratelimit.RateLimitProperties.Limit;
 import dev.jotave.foody.ratelimit.RateLimiter;
 import io.github.bucket4j.EstimationProbe;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,13 +69,6 @@ class LoginAttemptLimiter {
   }
 
   private static String subject(String normalizedEmail) {
-    try {
-      byte[] digest =
-          MessageDigest.getInstance("SHA-256")
-              .digest(normalizedEmail.getBytes(StandardCharsets.UTF_8));
-      return HexFormat.of().formatHex(digest);
-    } catch (NoSuchAlgorithmException e) {
-      throw new IllegalStateException(e);
-    }
+    return OpaqueTokens.sha256(normalizedEmail);
   }
 }

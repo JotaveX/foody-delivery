@@ -10,11 +10,13 @@ export class FakeStompClient {
   static instances: FakeStompClient[] = []
 
   active = false
+  connectHeaders: StompConfig['connectHeaders'] = {}
   readonly subscriptions = new Map<string, Handler>()
   readonly config: StompConfig
 
   constructor(config: StompConfig) {
     this.config = config
+    this.connectHeaders = config.connectHeaders
     FakeStompClient.instances.push(this)
   }
 
@@ -38,6 +40,12 @@ export class FakeStompClient {
 
   simulateConnect() {
     this.config.onConnect?.({} as never)
+  }
+
+  /** A reconnect: like the real client, runs beforeConnect first. */
+  async simulateReconnect() {
+    await this.config.beforeConnect?.(this as never)
+    this.simulateConnect()
   }
 
   /** The socket dropped; the real client would now retry with backoff. */

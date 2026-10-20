@@ -79,7 +79,8 @@ e o cardápio na primeira subida.
 | `SQLITE_PATH` | `./data/tracker.db` | Arquivo do SQLite |
 | `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` | `localhost` / `6379` / vazio | Redis |
 | `JWT_SECRET` | segredo fixo só de dev | Obrigatório em `prod` (≥ 32 bytes) |
-| `JWT_EXPIRATION` | `PT2H` | Validade do JWT |
+| `JWT_EXPIRATION` | `PT2H` | Validade do JWT (access token) |
+| `REFRESH_TOKEN_TTL` | `P7D` | Validade do refresh token; cada renovação emite um novo com o prazo cheio |
 | `MAIL_PROVIDER` | `smtp` (Mailpit) | `resend` em produção, com `RESEND_API_KEY` e `MAIL_FROM` |
 | `SMTP_HOST` / `SMTP_PORT` | `localhost` / `1025` | SMTP quando `MAIL_PROVIDER=smtp` |
 | `PASSWORD_RESET_URL` | `http://localhost:5173/reset-password` | Página do link enviado por e-mail |
@@ -335,7 +336,9 @@ está no Swagger (`/swagger-ui.html`, spec em `/v3/api-docs`).
 | Método | Rota | Descrição | Respostas notáveis |
 |---|---|---|---|
 | `POST` | `/auth/register` | Cadastro (nome, e-mail, senha). **Pública** | 201, 400, 409 e-mail já cadastrado |
-| `POST` | `/auth/login` | Troca e-mail e senha por um JWT. **Pública** | 200 `{ token, expiresIn, user }`, 401 genérico |
+| `POST` | `/auth/login` | Troca e-mail e senha por um JWT e põe o refresh token no cookie `foody_refresh`. **Pública** | 200 `{ token, expiresIn, refreshExpiresIn, user }` + `Set-Cookie`, 401 genérico |
+| `POST` | `/auth/refresh` | Troca o cookie `foody_refresh` por um JWT novo e o próximo refresh token (uso único). **Pública** | 200 como o login, 401 sessão expirada (e apaga o cookie) |
+| `POST` | `/auth/logout` | Revoga o refresh token e apaga o cookie. **Pública** | Sempre 204 |
 | `GET` | `/auth/me` | Usuário atual com o endereço padrão | 200 |
 | `POST` | `/auth/forgot-password` | Envia o link de redefinição por e-mail. **Pública** | Sempre 204 |
 | `POST` | `/auth/reset-password` | Nova senha com o token do e-mail. **Pública** | 204, 400 token inválido/expirado |
@@ -444,8 +447,8 @@ O header é opcional: sem ele, o endpoint funciona normalmente.
 
 ### JWT stateless com `token_version` para revogação
 
-O login devolve um JWT HS256 (2h) com o id do usuário (`sub`) e a versão do token (`tv`). Não há
-sessão no servidor nem refresh token. O problema clássico do JWT stateless é não conseguir revogar
+O login devolve um JWT HS256 (2h) com o id do usuário (`sub`) e a versão do token (`tv`), e um
+refresh token (abaixo). Não há sessão HTTP no servidor. O problema clássico do JWT stateless é não conseguir revogar
 um token antes de expirar; aqui cada requisição compara o `tv` do token com o `token_version` do
 usuário (uma leitura por chave primária). Trocar a senha incrementa a versão e **derruba todos os
 tokens emitidos antes**, em todos os dispositivos, e os links de redefinição pendentes. A mesma
@@ -462,8 +465,33 @@ atacante pode travar o login de uma conta por 15 min (a redefinição de senha c
 funcionando). O `X-Forwarded-For` só é lido quando a conexão vem de um proxy listado em
 `RATE_LIMIT_TRUSTED_PROXIES` (o Caddy, em produção); senão qualquer cliente inventaria o próprio IP.
 
-O token fica no `localStorage` do navegador. É vulnerável a XSS, contra o que o front tem uma CSP
-restrita (`script-src 'self'`) no Pages; em troca, não há cookie e, portanto, não há CSRF.
+O access token fica no `localStorage` do navegador. É vulnerável a XSS, contra o que o front tem
+uma CSP restrita (`script-src 'self'`) no Pages; um XSS levaria no máximo as 2h do access token.
+
+### Refresh token rotativo em cookie `HttpOnly`
+
+O refresh token (256 bits aleatórios) vale 7 dias e vai num cookie `foody_refresh` `HttpOnly`,
+`Secure`, `SameSite=Strict`, restrito a `Path=/auth`: o JavaScript não lê o cookie, e ele só segue
+para as rotas de autenticação. O front em `foody.jotave.dev` e a API em `api.foody.jotave.dev` são
+o mesmo site, então o `Strict` não atrapalha; o CORS passou a aceitar credenciais por causa dele.
+Em dev, o Vite e o nginx servem a API sob `/api` e reescrevem o path do cookie para `/api/auth`.
+Nos previews `*.foody.pages.dev` (outro site) o cookie não é enviado, e lá a sessão dura só as 2h do
+access token.
+
+- **Redis, sem tabela.** Como nos links de redefinição, só o SHA-256 do token vai para o Redis:
+  `refresh:{hash}` → `userId:tokenVersion:família`, com TTL. A troca de senha também derruba os
+  refresh tokens, porque a renovação compara o `tokenVersion` com o do usuário.
+- **Rotação com detecção de reuso.** Cada token é de uso único (GETDEL) e a renovação emite o
+  próximo, da mesma família (um login). O token gasto fica marcado (`refresh-used:{hash}`); se ele
+  aparecer de novo, alguém o copiou, e a família inteira é revogada (`refresh-family:{família}`),
+  derrubando também quem estava com o token novo. Os outros logins do usuário continuam valendo.
+- **Expiração deslizante.** Cada renovação emite um token com 7 dias cheios: a sessão acaba depois
+  de 7 dias sem uso, ou no logout, que revoga a família e apaga o cookie.
+- **No front**, o cliente HTTP renova o access token 30s antes de vencer e, se o servidor recusar
+  um token antes da hora, renova uma vez e repete a requisição. Como o refresh é de uso único, as
+  renovações são serializadas: na aba, por uma promise compartilhada; entre abas (que dividem o
+  cookie), por um Web Lock, e a aba que pega o lock depois de outra já ter renovado só reaproveita o
+  token novo. O WebSocket lê o token antes de cada reconexão.
 
 ### Cache com invalidação por evento após o commit
 
@@ -539,8 +567,8 @@ pelo Pages, continua no ar.
 - **Postgres para escalar horizontalmente.** É o único passo que falta: com o estado efêmero no
   Redis, trocar o SQLite por Postgres (as migrations do Flyway são quase SQL padrão) permite várias
   instâncias atrás de um balanceador, com escritores concorrentes de verdade.
-- **Refresh token.** Hoje o JWT dura 2h e o usuário refaz o login. O ideal é um access token curto
-  (5–15 min) e um refresh token rotativo, guardado em cookie `HttpOnly`, com detecção de reuso.
+- **Access token mais curto.** Com o refresh token rotativo em cookie `HttpOnly`, o JWT poderia
+  durar 5–15 min em vez de 2h, encurtando a janela de um token vazado por XSS.
 - **Papéis de usuário.** Hoje todo usuário autenticado vê o quadro inteiro e muda o status de
   qualquer pedido. Com papéis (cliente, cozinha, entregador, admin), o cliente veria só os próprios
   pedidos e só a cozinha avançaria o status, inclusive nos tópicos do WebSocket.

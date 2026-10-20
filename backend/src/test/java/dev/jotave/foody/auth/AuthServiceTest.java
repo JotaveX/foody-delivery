@@ -21,6 +21,7 @@ class AuthServiceTest {
           mock(AddressService.class),
           mock(PasswordEncoder.class),
           mock(JwtService.class),
+          mock(RefreshTokenService.class),
           mock(LoginAttemptLimiter.class));
 
   @Test

@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 import { storeSession, user as fixtureUser } from '../test/fixtures'
@@ -37,9 +37,37 @@ describe('protected routes', () => {
     expect(localStorage.getItem('foody.session')).toBeNull()
   })
 
-  it('end the session when the token expires while the app is open', async () => {
+  it('renew an expired access token with the refresh cookie instead of logging out', async () => {
+    server.use(
+      http.post('/api/auth/refresh', () =>
+        HttpResponse.json({
+          token: 'fresh-token',
+          expiresIn: 7200,
+          refreshExpiresIn: 604800,
+          user: fixtureUser,
+        }),
+      ),
+      http.get('/api/auth/me', ({ request }) =>
+        request.headers.get('Authorization') === 'Bearer fresh-token'
+          ? HttpResponse.json(fixtureUser)
+          : HttpResponse.json({ status: 401 }, { status: 401 }),
+      ),
+    )
+    storeSession({ token: 'expired-token', expiresAt: Date.now() - 1000 })
+
+    renderApp('/')
+
+    expect(await screen.findByRole('heading', { name: 'Pedidos' })).toBeInTheDocument()
+    await waitFor(() =>
+      expect(JSON.parse(localStorage.getItem('foody.session')!)).toMatchObject({
+        token: 'fresh-token',
+      }),
+    )
+  })
+
+  it('end the session when the refresh token expires while the app is open', async () => {
     server.use(http.get('/api/auth/me', () => HttpResponse.json(fixtureUser)))
-    storeSession({ expiresAt: Date.now() + 300 })
+    storeSession({ refreshExpiresAt: Date.now() + 300 })
 
     renderApp('/')
 
@@ -48,8 +76,15 @@ describe('protected routes', () => {
     expect(localStorage.getItem('foody.session')).toBeNull()
   })
 
-  it('log out from the header', async () => {
-    server.use(http.get('/api/auth/me', () => HttpResponse.json(fixtureUser)))
+  it('log out from the header, revoking the refresh token', async () => {
+    let loggedOut = false
+    server.use(
+      http.get('/api/auth/me', () => HttpResponse.json(fixtureUser)),
+      http.post('/api/auth/logout', () => {
+        loggedOut = true
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
     storeSession()
     const { user } = renderApp('/')
 
@@ -57,5 +92,6 @@ describe('protected routes', () => {
 
     expect(await screen.findByRole('heading', { name: 'Identifique-se' })).toBeInTheDocument()
     expect(localStorage.getItem('foody.session')).toBeNull()
+    await waitFor(() => expect(loggedOut).toBe(true))
   })
 })

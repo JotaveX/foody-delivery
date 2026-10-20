@@ -52,6 +52,10 @@ app:
   jwt:
     secret: ${JWT_SECRET}
     expiration: ${JWT_EXPIRATION:PT2H}
+  refresh-token:
+    # Each refresh issues a new token with a full ttl: the session ends after this much inactivity.
+    ttl: ${REFRESH_TOKEN_TTL:P7D}
+    cookie-secure: true
   mail:
     # resend (HTTP API) or smtp (spring.mail.*).
     provider: ${MAIL_PROVIDER:resend}
@@ -109,6 +113,11 @@ app:
         path: /auth/reset-password
         capacity: 5
         period: 1m
+      # Every open tab refreshes about once per access token lifetime; this only stops floods.
+      refresh:
+        path: /auth/refresh
+        capacity: 30
+        period: 1m
     # Per user, on every authenticated request.
     per-user:
       capacity: 100
@@ -149,6 +158,9 @@ app:
   jwt:
     # Dev-only default; production must provide JWT_SECRET.
     secret: ${JWT_SECRET:dev-only-insecure-jwt-secret-change-me-0123456789abcdef}
+  refresh-token:
+    # Dev runs on plain http://localhost.
+    cookie-secure: false
   mail:
     # Mailpit (docker compose); MAIL_PROVIDER=resend with RESEND_API_KEY tests the real provider.
     provider: ${MAIL_PROVIDER:smtp}

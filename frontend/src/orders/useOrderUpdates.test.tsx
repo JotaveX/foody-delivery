@@ -1,10 +1,13 @@
 import { ReconnectionTimeMode } from '@stomp/stompjs'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react'
+import { http, HttpResponse } from 'msw'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { FakeStompClient } from '../test/fakeStomp'
+import { storeSession, user } from '../test/fixtures'
 import { orderDetail, orderSummary } from '../test/orderFixtures'
+import { server } from '../test/server'
 import {
   LiveStatusContext,
   OFFLINE_POLL_INTERVAL_MS,
@@ -18,14 +21,15 @@ import { ORDERS_TOPIC, useOrderUpdates } from './useOrderUpdates'
 const ALL = { page: 0, size: 10 }
 const RECEIVED = { status: 'RECEBIDO' as const, page: 0, size: 10 }
 
-function setup(token: string | null = 'jwt-token') {
+function setup(enabled = true) {
+  storeSession({ token: 'jwt-token' })
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   )
-  const hook = renderHook(({ token }) => useOrderUpdates(token), {
+  const hook = renderHook(({ enabled }) => useOrderUpdates(enabled), {
     wrapper,
-    initialProps: { token },
+    initialProps: { enabled },
   })
   return { queryClient, hook, client: () => FakeStompClient.latest! }
 }
@@ -34,8 +38,8 @@ function listPage(content: OrderSummary[], totalElements = content.length): Page
   return { content, page: 0, size: 10, totalElements, totalPages: Math.ceil(totalElements / 10) }
 }
 
-function connected(token?: string) {
-  const ctx = setup(token)
+function connected() {
+  const ctx = setup()
   act(() => ctx.client().simulateConnect())
   return ctx
 }
@@ -71,8 +75,8 @@ describe('useOrderUpdates', () => {
     expect(client().config.brokerURL).toBe('wss://api.foody.jotave.dev/ws')
   })
 
-  it('does not connect without a token', () => {
-    setup(null)
+  it('does not connect while logged out', () => {
+    setup(false)
     expect(FakeStompClient.instances).toHaveLength(0)
   })
 
@@ -198,20 +202,45 @@ describe('useOrderUpdates', () => {
     expect(queryClient.getQueryState(orderKeys.list(ALL))?.isInvalidated).toBe(true)
   })
 
-  it('disconnects on unmount and reconnects with the new token on login', () => {
-    const { hook } = connected('old-token')
+  it('disconnects on logout and on unmount', () => {
+    const { hook } = connected()
     const first = FakeStompClient.latest!
 
-    hook.rerender({ token: 'new-token' })
-
+    hook.rerender({ enabled: false })
     expect(first.active).toBe(false)
-    expect(FakeStompClient.latest).not.toBe(first)
-    expect(FakeStompClient.latest!.config.connectHeaders).toEqual({
-      Authorization: 'Bearer new-token',
-    })
 
+    hook.rerender({ enabled: true })
+    expect(FakeStompClient.latest).not.toBe(first)
     hook.unmount()
     expect(FakeStompClient.latest!.active).toBe(false)
+  })
+
+  it('reconnects with the token refreshed while the socket was open', async () => {
+    const { client } = connected()
+    storeSession({ token: 'refreshed-token' })
+
+    await act(() => client().simulateReconnect())
+
+    expect(client().connectHeaders).toEqual({ Authorization: 'Bearer refreshed-token' })
+  })
+
+  it('refreshes an expired token before reconnecting', async () => {
+    server.use(
+      http.post('/api/auth/refresh', () =>
+        HttpResponse.json({
+          token: 'new-token',
+          expiresIn: 7200,
+          refreshExpiresIn: 604800,
+          user,
+        }),
+      ),
+    )
+    const { client } = connected()
+    storeSession({ token: 'expired-token', expiresAt: Date.now() - 1000 })
+
+    await act(() => client().simulateReconnect())
+
+    expect(client().connectHeaders).toEqual({ Authorization: 'Bearer new-token' })
   })
 })
 

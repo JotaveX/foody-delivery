@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
-import { api, LOGIN_PATH, setUnauthorizedHandler } from '../api/client'
+import { api, LOGIN_PATH, LOGOUT_PATH, setUnauthorizedHandler } from '../api/client'
 import { AuthContext, type AuthContextValue } from './context'
-import { clearSession, readSession, writeSession } from './session'
+import { clearSession, readSession, sessionFrom, subscribeSession, writeSession } from './session'
 import type { LoginResponse, RegisterInput, Session, User } from './types'
 
 const MAX_TIMEOUT_MS = 2 ** 31 - 1
@@ -12,6 +12,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
 
   const logout = useCallback(() => {
+    // Revokes the refresh token and clears its cookie; the session ends here either way.
+    void api.post(LOGOUT_PATH, null, { withCredentials: true }).catch(() => {})
     clearSession()
     setSession(null)
     navigate('/login', { replace: true })
@@ -22,14 +24,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => setUnauthorizedHandler(null)
   }, [logout])
 
-  // The JWT is not refreshed: end the session when it expires instead of letting every request
-  // fail. setTimeout caps delays at ~24.8 days, far above the token lifetime.
-  const expiresAt = session?.expiresAt
+  // The API client refreshes the access token on its own and saves the new session.
+  useEffect(() => subscribeSession(() => setSession(readSession())), [])
+
+  // End the session when the refresh token expires instead of letting every request fail.
+  // setTimeout caps delays at ~24.8 days, far above the refresh token lifetime.
+  const refreshExpiresAt = session?.refreshExpiresAt
   useEffect(() => {
-    if (expiresAt === undefined) return
-    const timer = setTimeout(logout, Math.min(expiresAt - Date.now(), MAX_TIMEOUT_MS))
+    if (refreshExpiresAt === undefined) return
+    const timer = setTimeout(logout, Math.min(refreshExpiresAt - Date.now(), MAX_TIMEOUT_MS))
     return () => clearTimeout(timer)
-  }, [expiresAt, logout])
+  }, [refreshExpiresAt, logout])
 
   /** Reloads the current user (e.g. after the default address changed). */
   const refreshUser = useCallback(async () => {
@@ -50,12 +55,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [hasSession])
 
   const login = useCallback(async (email: string, password: string) => {
-    const { data } = await api.post<LoginResponse>(LOGIN_PATH, { email, password })
-    const next: Session = {
-      token: data.token,
-      expiresAt: Date.now() + data.expiresIn * 1000,
-      user: data.user,
-    }
+    // withCredentials so the browser keeps the refresh cookie of a cross-origin API.
+    const { data } = await api.post<LoginResponse>(
+      LOGIN_PATH,
+      { email, password },
+      { withCredentials: true },
+    )
+    const next = sessionFrom(data)
     writeSession(next)
     setSession(next)
   }, [])
@@ -71,7 +77,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthContextValue>(
     () => ({
       user: session?.user ?? null,
-      token: session?.token ?? null,
       isAuthenticated: session !== null,
       login,
       register,

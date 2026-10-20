@@ -21,7 +21,12 @@ describe('LoginPage', () => {
     server.use(
       http.post('/api/auth/login', async ({ request }) => {
         sentBody = await request.json()
-        return HttpResponse.json({ token: 'jwt', expiresIn: 7200, user: fixtureUser })
+        return HttpResponse.json({
+          token: 'jwt',
+          expiresIn: 7200,
+          refreshExpiresIn: 604800,
+          user: fixtureUser,
+        })
       }),
       http.get('/api/auth/me', () => HttpResponse.json(fixtureUser)),
     )

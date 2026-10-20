@@ -16,7 +16,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
  * security chain ({@code http.cors(...)}), so preflights are answered before authentication and
  * even 401/429 responses carry the headers the browser needs to read them.
  *
- * <p>The JWT travels in the Authorization header, never in a cookie: credentials stay disabled.
+ * <p>The JWT travels in the Authorization header; credentials are allowed only for the refresh
+ * token's HttpOnly cookie (scoped to {@code /auth}, {@code SameSite=Strict}).
  */
 @Configuration
 class CorsConfig {
@@ -35,7 +36,7 @@ class CorsConfig {
             HttpHeaders.RETRY_AFTER,
             RateLimitFilter.REMAINING_HEADER,
             IdempotencyAspect.REPLAYED_HEADER));
-    config.setAllowCredentials(false);
+    config.setAllowCredentials(true);
     config.setMaxAge(Duration.ofHours(1));
 
     var source = new UrlBasedCorsConfigurationSource();

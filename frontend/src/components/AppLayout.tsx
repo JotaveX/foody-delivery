@@ -5,8 +5,8 @@ import { LiveStatusContext } from '../orders/liveStatus'
 import { useOrderUpdates } from '../orders/useOrderUpdates'
 
 export function AppLayout() {
-  const { user, token, logout } = useAuth()
-  const liveStatus = useOrderUpdates(token)
+  const { user, isAuthenticated, logout } = useAuth()
+  const liveStatus = useOrderUpdates(isAuthenticated)
   const now = useNow()
   const onNewOrder = useMatch('/orders/new')
   return (
