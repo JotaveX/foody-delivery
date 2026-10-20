@@ -6,7 +6,7 @@ const SESSION_KEY = 'foody.session'
 
 function storedSession(page: Page) {
   return page.evaluate(
-    (key) => JSON.parse(localStorage.getItem(key) ?? 'null') as { token: string } | null,
+    (key) => JSON.parse(localStorage.getItem(key) ?? 'null') as { expiresAt: number } | null,
     SESSION_KEY,
   )
 }
@@ -30,13 +30,14 @@ test('o refresh token renova a sessão e o logout o revoga', async ({ page, requ
     expect(cookie).toMatchObject({ path: '/api/auth', httpOnly: true, sameSite: 'Strict' })
   })
 
-  const firstToken = (await storedSession(page))!.token
-
   await test.step('com o access token vencido, a página renova em vez de deslogar', async () => {
     await expireAccessToken(page)
     await page.reload()
     await expect(page.getByRole('heading', { name: 'Pedidos' })).toBeVisible()
-    await expect.poll(async () => (await storedSession(page))?.token).not.toBe(firstToken)
+    // Not the token itself: a refresh in the same second as the login signs identical claims.
+    await expect
+      .poll(async () => (await storedSession(page))?.expiresAt ?? 0)
+      .toBeGreaterThan(Date.now())
   })
 
   await test.step('depois de sair, o cookie não renova mais a sessão', async () => {
