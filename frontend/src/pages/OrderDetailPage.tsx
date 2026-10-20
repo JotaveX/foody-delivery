@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { Link, useParams } from 'react-router'
-import { NotFoundTicket } from '@/shared/components/ui/NotFoundTicket'
+import { StampedTicket } from '@/shared/components/ui/StampedTicket'
 import { QueryState } from '@/shared/components/ui/QueryState'
 import {
   StatusBadge,
@@ -37,9 +37,11 @@ export function OrderDetailPage() {
   if (notFound) {
     return (
       <div className="not-found-inline">
-        <NotFoundTicket
+        <StampedTicket
           title="Pedido não encontrado"
           reference={Number.isInteger(id) ? `COMANDA Nº ${id}` : 'COMANDA Nº ———'}
+          status="NÃO ENCONTRADA"
+          stamp="Extraviada"
           actionTo="/orders"
           actionLabel="Voltar para os pedidos"
         >
@@ -48,7 +50,7 @@ export function OrderDetailPage() {
               ? `Não existe pedido com o número #${id}.`
               : 'O número do pedido no endereço não é válido.'}
           </p>
-        </NotFoundTicket>
+        </StampedTicket>
       </div>
     )
   }

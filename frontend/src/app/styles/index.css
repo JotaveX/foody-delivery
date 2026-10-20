@@ -1991,21 +1991,21 @@ select {
   }
 }
 
-/* ---------- Not found ---------- */
+/* ---------- Not found / server error ---------- */
 
-.not-found-stamp {
+.stamped-ticket-stamp {
   align-self: flex-start;
   margin-left: 4px;
 }
 
-.not-found-body {
+.stamped-ticket-body {
   display: flex;
   flex-direction: column;
   gap: 6px;
   font-size: 15px;
 }
 
-.not-found-path {
+.stamped-ticket-value {
   font-family: var(--font-mono);
   font-size: 15px;
   font-weight: 600;
@@ -2013,7 +2013,9 @@ select {
 }
 
 .auth-flow .not-found-step,
-.auth-flow .not-found-step strong {
+.auth-flow .not-found-step strong,
+.auth-flow .server-error-step,
+.auth-flow .server-error-step strong {
   color: var(--brand-soft);
 }
 
@@ -2024,7 +2026,8 @@ select {
 }
 
 @media (max-width: 640px) {
-  .not-found-flow {
+  .not-found-flow,
+  .server-error-flow {
     display: none;
   }
 }

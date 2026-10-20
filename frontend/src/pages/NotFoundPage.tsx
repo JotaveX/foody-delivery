@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router'
-import { NotFoundTicket } from '@/shared/components/ui/NotFoundTicket'
+import { StampedTicket } from '@/shared/components/ui/StampedTicket'
 import { HAPPY_PATH, STATUS_LABEL } from '@/features/order'
 
 /** Any unknown URL. Lives outside the authenticated layout: it works logged in or out. */
@@ -27,16 +27,18 @@ export function NotFoundPage() {
           </li>
         </ol>
       </div>
-      <NotFoundTicket
+      <StampedTicket
         title="Página não encontrada"
         reference="COMANDA Nº 404"
+        status="NÃO ENCONTRADA"
+        stamp="Extraviada"
         actionTo="/"
         actionLabel="Ir para o quadro"
       >
         <p className="label">Endereço</p>
-        <p className="not-found-path">{pathname}</p>
+        <p className="stamped-ticket-value">{pathname}</p>
         <p className="muted">Ela pode ter mudado de lugar ou nunca ter existido.</p>
-      </NotFoundTicket>
+      </StampedTicket>
     </div>
   )
 }
